@@ -1,0 +1,37 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('user_searches', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('cidade');
+            $table->string('nicho');
+            $table->integer('results_count')->default(0);
+            $table->enum('status', ['pending', 'completed', 'failed'])->default('pending');
+            $table->timestamp('completed_at')->nullable();
+            $table->timestamps();
+
+            $table->index(['user_id', 'created_at']);
+            $table->index(['cidade', 'nicho']);
+            $table->index('status');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('user_searches');
+    }
+};
