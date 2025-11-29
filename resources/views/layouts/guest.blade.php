@@ -5,7 +5,18 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+        <!-- Primary Meta Tags -->
+        <title>ProspectaFreela - Prospecção Automática B2B e B2C com IA</title>
+        <meta name="title" content="ProspectaFreela - Prospecção Automática B2B e B2C com IA">
+        <meta name="description" content="Plataforma de prospecção automática com inteligência artificial para Designers, Programadores e Gestores de Tráfego. Encontre clientes ideais e aumente suas vendas automaticamente.">
+        <meta name="keywords" content="prospecção automática, B2B, B2C, inteligência artificial, leads qualificados, vendas, designers, programadores, gestores de tráfego">
+        <meta name="author" content="ProspectaFreela">
+        <meta name="robots" content="index, follow">
+        
+        <!-- Favicon -->
+        <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+        <link rel="alternate icon" href="{{ asset('favicon.ico') }}">
+        <link rel="apple-touch-icon" href="{{ asset('favicon.svg') }}">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

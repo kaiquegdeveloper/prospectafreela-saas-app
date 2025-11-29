@@ -7,6 +7,7 @@ use App\Models\AppSetting;
 use App\Models\ContactMessageTemplate;
 use App\Models\Prospect;
 use App\Models\ProspectLead;
+use App\Models\UserSearch;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
@@ -421,6 +422,274 @@ class ProspectController extends Controller
                 'percent' => 0,
             ],
         ];
+    }
+
+    /**
+     * Lista todas as pesquisas salvas do usuário agrupadas por cidade e nicho
+     */
+    public function mySearches(Request $request)
+    {
+        $userId = Auth::id();
+
+        // Busca pesquisas completas com raw_data (pesquisas salvas)
+        $searches = UserSearch::where('user_id', $userId)
+            ->where('status', 'completed')
+            ->whereNotNull('raw_data')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Agrupa por cidade + nicho (usando normalized_cidade quando disponível)
+        $groupedSearches = [];
+        foreach ($searches as $search) {
+            $key = ($search->normalized_cidade ?? $search->cidade) . '|' . $search->nicho;
+            
+            if (!isset($groupedSearches[$key])) {
+                $groupedSearches[$key] = [
+                    'cidade' => $search->cidade,
+                    'normalized_cidade' => $search->normalized_cidade ?? $search->cidade,
+                    'nicho' => $search->nicho,
+                    'search_id' => $search->id,
+                    'results_count' => count($search->raw_data ?? []),
+                    'created_at' => $search->created_at,
+                    'updated_at' => $search->updated_at,
+                ];
+            } else {
+                // Mantém a pesquisa mais recente
+                if ($search->created_at > $groupedSearches[$key]['created_at']) {
+                    $groupedSearches[$key]['search_id'] = $search->id;
+                    $groupedSearches[$key]['results_count'] = count($search->raw_data ?? []);
+                    $groupedSearches[$key]['created_at'] = $search->created_at;
+                    $groupedSearches[$key]['updated_at'] = $search->updated_at;
+                }
+            }
+        }
+
+        // Conta prospects para cada pesquisa
+        foreach ($groupedSearches as $key => &$group) {
+            $prospectCount = Prospect::forUser($userId)
+                ->where(function ($query) use ($group) {
+                    $query->where('cidade', $group['cidade'])
+                          ->orWhere('cidade', $group['normalized_cidade']);
+                })
+                ->where('nicho', $group['nicho'])
+                ->count();
+            
+            $group['prospect_count'] = $prospectCount;
+        }
+
+        // Ordena por data de criação (mais recente primeiro)
+        usort($groupedSearches, function ($a, $b) {
+            return $b['created_at'] <=> $a['created_at'];
+        });
+
+        return view('searches.my', [
+            'searches' => $groupedSearches,
+        ]);
+    }
+
+    /**
+     * Busca mais resultados para uma pesquisa específica
+     */
+    public function searchMore(Request $request, int $searchId)
+    {
+        $search = UserSearch::findOrFail($searchId);
+        
+        // Verifica se a pesquisa pertence ao usuário
+        if ($search->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        // Verifica cota ANTES de buscar mais resultados
+        $quotaCheck = $this->checkQuotaExceeded(Auth::id());
+        if ($quotaCheck['exceeded']) {
+            return redirect()
+                ->route('searches.my')
+                ->withErrors(['quota' => $quotaCheck['message']]);
+        }
+
+        // Dispatch job para buscar mais resultados
+        ProcessProspectingJob::dispatch(
+            Auth::id(),
+            $search->cidade,
+            $search->nicho
+        );
+
+        return redirect()
+            ->route('searches.my')
+            ->with('success', 'Buscando mais resultados para ' . $search->cidade . ' - ' . $search->nicho . '... Os novos prospects aparecerão em alguns instantes.');
+    }
+
+    /**
+     * Exporta prospects de uma pesquisa específica para CSV
+     */
+    public function exportSearchCsv(int $searchId)
+    {
+        $search = UserSearch::findOrFail($searchId);
+        
+        // Verifica se a pesquisa pertence ao usuário
+        if ($search->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $normalizedCity = $search->normalized_cidade ?? $search->cidade;
+
+        $prospects = Prospect::forUser(Auth::id())
+            ->where(function ($query) use ($search, $normalizedCity) {
+                $query->where('cidade', $search->cidade)
+                      ->orWhere('cidade', $normalizedCity);
+            })
+            ->where('nicho', $search->nicho)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $filename = 'prospects_' . str_replace(' ', '_', $search->cidade) . '_' . str_replace(' ', '_', $search->nicho) . '_' . date('Y-m-d_His') . '.csv';
+
+        return new StreamedResponse(function () use ($prospects) {
+            $handle = fopen('php://output', 'w');
+
+            // BOM para UTF-8 (Excel)
+            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            // Cabeçalhos
+            fputcsv($handle, [
+                'Nome',
+                'Telefone',
+                'WhatsApp',
+                'E-mail',
+                'Site',
+                'Endereço',
+                'Cidade',
+                'Nicho',
+                'Google Maps URL',
+                'Status',
+                'Data de Criação',
+            ], ';');
+
+            // Dados
+            foreach ($prospects as $prospect) {
+                fputcsv($handle, [
+                    $prospect->nome,
+                    $prospect->telefone ?? '',
+                    $prospect->whatsapp ?? '',
+                    $prospect->email ?? '',
+                    $prospect->site ?? '',
+                    $prospect->endereco ?? '',
+                    $prospect->cidade,
+                    $prospect->nicho,
+                    $prospect->google_maps_url ?? '',
+                    $prospect->status,
+                    $prospect->created_at->format('d/m/Y H:i:s'),
+                ], ';');
+            }
+
+            fclose($handle);
+        }, Response::HTTP_OK, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+    /**
+     * Exporta prospects de uma pesquisa específica para XLSX
+     */
+    public function exportSearchXlsx(int $searchId)
+    {
+        $search = UserSearch::findOrFail($searchId);
+        
+        // Verifica se a pesquisa pertence ao usuário
+        if ($search->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $normalizedCity = $search->normalized_cidade ?? $search->cidade;
+
+        $prospects = Prospect::forUser(Auth::id())
+            ->where(function ($query) use ($search, $normalizedCity) {
+                $query->where('cidade', $search->cidade)
+                      ->orWhere('cidade', $normalizedCity);
+            })
+            ->where('nicho', $search->nicho)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $filename = 'prospects_' . str_replace(' ', '_', $search->cidade) . '_' . str_replace(' ', '_', $search->nicho) . '_' . date('Y-m-d_His') . '.xlsx';
+
+        // Verifica se PhpSpreadsheet está disponível
+        if (class_exists(\PhpOffice\PhpSpreadsheet\Spreadsheet::class)) {
+            return $this->exportXlsxWithPhpSpreadsheet($prospects, $filename);
+        }
+
+        // Fallback: retorna CSV (Excel pode abrir CSV)
+        return $this->exportSearchCsv($search);
+    }
+
+    /**
+     * Exporta para XLSX usando PhpSpreadsheet
+     */
+    private function exportXlsxWithPhpSpreadsheet($prospects, $filename)
+    {
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Cabeçalhos
+        $headers = [
+            'A1' => 'Nome',
+            'B1' => 'Telefone',
+            'C1' => 'WhatsApp',
+            'D1' => 'E-mail',
+            'E1' => 'Site',
+            'F1' => 'Endereço',
+            'G1' => 'Cidade',
+            'H1' => 'Nicho',
+            'I1' => 'Google Maps URL',
+            'J1' => 'Status',
+            'K1' => 'Data de Criação',
+        ];
+
+        foreach ($headers as $cell => $value) {
+            $sheet->setCellValue($cell, $value);
+        }
+
+        // Estiliza cabeçalhos
+        $headerStyle = [
+            'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => '4472C4']
+            ],
+        ];
+        $sheet->getStyle('A1:K1')->applyFromArray($headerStyle);
+
+        // Dados
+        $row = 2;
+        foreach ($prospects as $prospect) {
+            $sheet->setCellValue('A' . $row, $prospect->nome);
+            $sheet->setCellValue('B' . $row, $prospect->telefone ?? '');
+            $sheet->setCellValue('C' . $row, $prospect->whatsapp ?? '');
+            $sheet->setCellValue('D' . $row, $prospect->email ?? '');
+            $sheet->setCellValue('E' . $row, $prospect->site ?? '');
+            $sheet->setCellValue('F' . $row, $prospect->endereco ?? '');
+            $sheet->setCellValue('G' . $row, $prospect->cidade);
+            $sheet->setCellValue('H' . $row, $prospect->nicho);
+            $sheet->setCellValue('I' . $row, $prospect->google_maps_url ?? '');
+            $sheet->setCellValue('J' . $row, $prospect->status);
+            $sheet->setCellValue('K' . $row, $prospect->created_at->format('d/m/Y H:i:s'));
+            $row++;
+        }
+
+        // Ajusta largura das colunas
+        foreach (range('A', 'K') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // Cria writer e retorna resposta
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 }
 

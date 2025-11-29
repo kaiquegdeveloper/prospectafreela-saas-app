@@ -2,7 +2,7 @@
     <div class="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
         <div class="max-w-7xl mx-auto space-y-8">
             <!-- Header Section -->
-            <div class="animate-fade-in">
+            <div>
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h1 class="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 dark:from-white dark:via-gray-200 dark:to-white bg-clip-text text-transparent">
@@ -24,7 +24,7 @@
             </div>
 
             <!-- Stats Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 animate-slide-up">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 @php
                     $totalProspects = auth()->user()->prospects()->count();
                     $concluidos = auth()->user()->prospects()->where('status', 'done')->count();
@@ -97,7 +97,7 @@
             </div>
 
             <!-- Chart Section -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-slide-up">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Progress Chart -->
                 <div class="rounded-2xl bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-6">
                     <div class="flex items-center justify-between mb-6">
@@ -169,7 +169,7 @@
             </div>
 
             <!-- Recent Prospects Table -->
-            <div class="rounded-2xl bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl overflow-hidden animate-slide-up">
+            <div class="rounded-2xl bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl overflow-hidden">
                 <div class="p-6 border-b border-gray-200 dark:border-gray-700">
                     <div class="flex items-center justify-between">
                         <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Prospects Recentes</h3>

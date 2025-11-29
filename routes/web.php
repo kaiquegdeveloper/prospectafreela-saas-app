@@ -25,6 +25,11 @@ Route::middleware('auth')->group(function () {
         ->name('prospects.lead');
     Route::get('/prospects-export', [ProspectController::class, 'export'])->name('prospects.export');
     
+    // Saved Searches routes
+    Route::get('/minhas-pesquisas', [ProspectController::class, 'mySearches'])->name('searches.my');
+    Route::get('/pesquisas/{searchId}/exportar-csv', [ProspectController::class, 'exportSearchCsv'])->name('searches.export.csv');
+    Route::get('/pesquisas/{searchId}/exportar-xlsx', [ProspectController::class, 'exportSearchXlsx'])->name('searches.export.xlsx');
+    
     // API routes (usando autenticação por sessão)
     Route::prefix('api')->group(function () {
         Route::get('/cities/search', [CityController::class, 'search'])->name('api.cities.search');

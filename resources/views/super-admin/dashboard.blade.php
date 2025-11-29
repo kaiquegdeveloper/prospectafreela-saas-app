@@ -2,7 +2,7 @@
     <div class="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
         <div class="max-w-7xl mx-auto space-y-8">
             <!-- Header Section -->
-            <div class="animate-fade-in">
+            <div>
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h1 class="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 dark:from-white dark:via-gray-200 dark:to-white bg-clip-text text-transparent">
@@ -31,7 +31,7 @@
             </div>
 
             <!-- Stats Cards Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-slide-up">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <!-- Users Ativos Logados -->
                 <div class="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
                     <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
@@ -106,7 +106,7 @@
             </div>
 
             <!-- API Stats Row -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-slide-up">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <!-- Usos da API -->
                 <div class="rounded-2xl bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-6">
                     <div class="flex items-center justify-between mb-6">
@@ -142,7 +142,7 @@
 
             <!-- Detecção de Anomalias -->
             @if(count($anomalies) > 0)
-            <div class="rounded-2xl bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-6 animate-slide-up">
+            <div class="rounded-2xl bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-6">
                 <div class="flex items-center justify-between mb-6">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
                         <svg class="w-5 h-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -174,7 +174,7 @@
             @endif
 
             <!-- Top Users Usage -->
-            <div class="rounded-2xl bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl overflow-hidden animate-slide-up">
+            <div class="rounded-2xl bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl overflow-hidden">
                 <div class="p-6 border-b border-gray-200 dark:border-gray-700">
                     <div class="flex items-center justify-between">
                         <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Top Usuários por Uso (7 dias)</h3>

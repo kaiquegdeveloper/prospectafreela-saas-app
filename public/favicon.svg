@@ -1,0 +1,18 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with gradient -->
+  <rect width="64" height="64" rx="14" fill="url(#gradient)"/>
+  <defs>
+    <linearGradient id="gradient" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#CCFF00"/>
+      <stop offset="50%" stop-color="#CCFF00"/>
+      <stop offset="100%" stop-color="#B3E600"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Lightning bolt icon -->
+  <path d="M32 12L18 28H28V36L42 20H32V12Z" fill="#1A1A1A" stroke="#1A1A1A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Subtle glow effect -->
+  <path d="M32 12L18 28H28V36L42 20H32V12Z" fill="rgba(255,255,255,0.1)" opacity="0.3"/>
+</svg>
+
