@@ -74,11 +74,15 @@ class ProspectController extends Controller
     public function create()
     {
         $userId = Auth::id();
+        $user = Auth::user();
+        $user->refresh(); // Garante dados atualizados
 
         $usage = $this->getUsageData($userId);
+        $maxApiFetches = $user->getEffectiveMaxApiFetches();
 
         return view('prospects.create', [
             'usage' => $usage,
+            'maxApiFetches' => $maxApiFetches,
         ]);
     }
 
@@ -87,15 +91,23 @@ class ProspectController extends Controller
      */
     public function store(Request $request)
     {
+        $userId = Auth::id();
+        $user = Auth::user();
+        $user->refresh(); // Garante dados atualizados
+        $maxApiFetches = $user->getEffectiveMaxApiFetches();
+
         $validated = $request->validate([
             'cidade' => ['required', 'string', 'max:255'],
             'nicho' => ['required', 'string', 'max:255'],
+            'max_results' => ['nullable', 'integer', 'min:1', "max:{$maxApiFetches}"],
         ], [
             'cidade.required' => 'Por favor, informe a cidade.',
             'nicho.required' => 'Por favor, informe o nicho.',
+            'max_results.max' => "O número máximo de resultados permitido é {$maxApiFetches}.",
         ]);
 
-        $userId = Auth::id();
+        // Se não informado, usa o máximo permitido
+        $maxResults = $validated['max_results'] ?? $maxApiFetches;
 
         // Verifica cota ANTES de criar prospecção
         $quotaCheck = $this->checkQuotaExceeded($userId);
@@ -137,7 +149,8 @@ class ProspectController extends Controller
             \App\Jobs\ProcessProspectingJob::dispatch(
                 $userId,
                 $validated['cidade'],
-                $validated['nicho']
+                $validated['nicho'],
+                $maxResults
             );
             
             return redirect()
@@ -149,7 +162,8 @@ class ProspectController extends Controller
         ProcessProspectingJob::dispatch(
             $userId,
             $validated['cidade'],
-            $validated['nicho']
+            $validated['nicho'],
+            $maxResults
         );
 
         return redirect()
@@ -364,15 +378,12 @@ class ProspectController extends Controller
             return $this->getDefaultUsageData();
         }
 
-        // Recarrega o relacionamento para garantir valores atualizados
-        // Remove o relacionamento do cache e recarrega
-        $user->unsetRelation('plan');
-        $plan = $user->plan()->first();
+        // Recarrega o usuário para garantir valores atualizados (incluindo quotas customizadas)
+        $user->refresh();
 
-        $monthlyQuota = $plan?->monthly_prospect_quota
-            ?? AppSetting::get('default_monthly_prospect_quota', 500);
-        $dailyQuota = $plan?->daily_prospect_quota
-            ?? AppSetting::get('default_daily_prospect_quota', 60);
+        // Usa os métodos do User que já verificam quotas customizadas
+        $monthlyQuota = $user->getEffectiveMonthlyQuota();
+        $dailyQuota = $user->getEffectiveDailyQuota();
 
         $today = now()->startOfDay();
         $monthStart = now()->startOfMonth();
@@ -507,11 +518,17 @@ class ProspectController extends Controller
                 ->withErrors(['quota' => $quotaCheck['message']]);
         }
 
-        // Dispatch job para buscar mais resultados
+        // Obtém o limite máximo de API fetches do usuário
+        $user = Auth::user();
+        $user->refresh();
+        $maxApiFetches = $user->getEffectiveMaxApiFetches();
+
+        // Dispatch job para buscar mais resultados (usa o máximo permitido)
         ProcessProspectingJob::dispatch(
             Auth::id(),
             $search->cidade,
-            $search->nicho
+            $search->nicho,
+            $maxApiFetches
         );
 
         return redirect()

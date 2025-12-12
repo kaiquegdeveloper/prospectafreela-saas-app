@@ -139,6 +139,28 @@
                             </p>
                         </div>
 
+                        <!-- Quantidade de Resultados -->
+                        <div class="mb-6">
+                            <label for="max_results" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Quantos resultados trazer?
+                            </label>
+                            <select name="max_results" 
+                                    id="max_results"
+                                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white @error('max_results') border-red-500 @enderror">
+                                @for($i = 1; $i <= $maxApiFetches; $i++)
+                                    <option value="{{ $i }}" {{ old('max_results', $maxApiFetches) == $i ? 'selected' : '' }}>
+                                        {{ $i }} resultado{{ $i > 1 ? 's' : '' }}
+                                    </option>
+                                @endfor
+                            </select>
+                            @error('max_results')
+                                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
+                            @enderror
+                            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                Escolha quantos resultados deseja buscar (máximo: {{ $maxApiFetches }}).
+                            </p>
+                        </div>
+
                         <!-- Info Box -->
                         <div class="mb-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                             <div class="flex">

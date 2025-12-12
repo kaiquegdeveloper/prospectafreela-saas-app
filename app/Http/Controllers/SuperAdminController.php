@@ -4,12 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\ApiLog;
 use App\Models\AppSetting;
+use App\Models\Plan;
+use App\Models\QueuePause;
 use App\Models\User;
+use App\Models\UserLoginHistory;
+use App\Models\UserModule;
 use App\Models\UserPayment;
 use App\Models\UserSearch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Queue;
 
 class SuperAdminController extends Controller
 {
@@ -243,6 +248,454 @@ class SuperAdminController extends Controller
         return redirect()->back()->with('success', 
             "Limite de resultados do usuário {$user->name} atualizado com sucesso!"
         );
+    }
+
+    /**
+     * Atualizar plano e quotas customizadas do usuário
+     */
+    public function updateUserPlan(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'plan_id' => 'nullable|exists:plans,id',
+            'monthly_quota_custom' => 'nullable|integer|min:0',
+            'daily_quota_custom' => 'nullable|integer|min:0',
+            'max_api_fetches_custom' => 'nullable|integer|min:1',
+        ]);
+
+        $user->update([
+            'plan_id' => $validated['plan_id'] ?? null,
+            'monthly_quota_custom' => $validated['monthly_quota_custom'] ?? null,
+            'daily_quota_custom' => $validated['daily_quota_custom'] ?? null,
+            'max_api_fetches_custom' => $validated['max_api_fetches_custom'] ?? null,
+        ]);
+
+        return redirect()->back()->with('success', 
+            "Plano e quotas do usuário {$user->name} atualizados com sucesso!"
+        );
+    }
+
+    /**
+     * Ver histórico de login de um usuário
+     */
+    public function userLoginHistory(User $user)
+    {
+        $loginHistory = $user->loginHistory()
+            ->orderBy('logged_in_at', 'desc')
+            ->paginate(50);
+
+        return view('super-admin.user-login-history', compact('user', 'loginHistory'));
+    }
+
+    /**
+     * Reports - Usuários que não logaram
+     */
+    public function reportsUsersNotLoggedIn(Request $request)
+    {
+        $days = $request->get('days', 30);
+        $cutoffDate = now()->subDays($days);
+
+        $usersNotLoggedIn = User::whereDoesntHave('loginHistory', function ($query) use ($cutoffDate) {
+            $query->where('logged_in_at', '>=', $cutoffDate);
+        })
+        ->where('role', '!=', 'super_admin')
+        ->with('plan')
+        ->orderBy('created_at', 'desc')
+        ->paginate(50)
+        ->withQueryString();
+
+        return view('super-admin.reports.users-not-logged-in', compact('usersNotLoggedIn', 'days'));
+    }
+
+    /**
+     * Reports - Usuários que logaram hoje
+     */
+    public function reportsUsersLoggedInToday()
+    {
+        $usersLoggedInToday = User::whereHas('loginHistory', function ($query) {
+            $query->whereDate('logged_in_at', today());
+        })
+        ->with(['plan', 'loginHistory' => function ($query) {
+            $query->whereDate('logged_in_at', today())
+                  ->orderBy('logged_in_at', 'desc');
+        }])
+        ->orderBy('created_at', 'desc')
+        ->paginate(50);
+
+        return view('super-admin.reports.users-logged-in-today', compact('usersLoggedInToday'));
+    }
+
+    /**
+     * Reports - Vezes que user logou
+     */
+    public function reportsUserLoginCounts(Request $request)
+    {
+        $query = User::withCount('loginHistory')
+            ->where('role', '!=', 'super_admin')
+            ->orderBy('login_history_count', 'desc');
+
+        if ($request->filled('search')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('name', 'like', "%{$request->search}%")
+                  ->orWhere('email', 'like', "%{$request->search}%");
+            });
+        }
+
+        $users = $query->paginate(50)->withQueryString();
+
+        return view('super-admin.reports.user-login-counts', compact('users'));
+    }
+
+    /**
+     * Gerenciar módulos de um usuário
+     */
+    public function userModules(User $user)
+    {
+        $availableModules = UserModule::availableModules();
+        $userModules = $user->modules()->get()->keyBy('module_name');
+
+        return view('super-admin.user-modules', compact('user', 'availableModules', 'userModules'));
+    }
+
+    /**
+     * Atualizar módulos de um usuário
+     */
+    public function updateUserModules(Request $request, User $user)
+    {
+        $availableModules = array_keys(UserModule::availableModules());
+
+        foreach ($availableModules as $moduleName) {
+            $isEnabled = $request->has("modules.{$moduleName}");
+
+            UserModule::updateOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'module_name' => $moduleName,
+                ],
+                [
+                    'is_enabled' => $isEnabled,
+                ]
+            );
+        }
+
+        return redirect()->back()->with('success', 
+            "Módulos do usuário {$user->name} atualizados com sucesso!"
+        );
+    }
+
+    /**
+     * Monitorar filas
+     */
+    public function queues()
+    {
+        $queuePauses = QueuePause::with('pausedBy')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $queueStats = [
+            'prospecting' => [
+                'pending' => DB::table('jobs')
+                    ->where('queue', 'prospecting')
+                    ->whereNull('reserved_at')
+                    ->count(),
+                'processing' => DB::table('jobs')
+                    ->where('queue', 'prospecting')
+                    ->whereNotNull('reserved_at')
+                    ->count(),
+                'failed' => DB::table('failed_jobs')
+                    ->where('queue', 'prospecting')
+                    ->count(),
+            ],
+        ];
+
+        $isGlobalPaused = QueuePause::isQueuePaused(null);
+        $isProspectingPaused = QueuePause::isQueuePaused('prospecting');
+
+        return view('super-admin.queues', compact(
+            'queuePauses',
+            'queueStats',
+            'isGlobalPaused',
+            'isProspectingPaused'
+        ));
+    }
+
+    /**
+     * Pausar fila
+     */
+    public function pauseQueue(Request $request)
+    {
+        $validated = $request->validate([
+            'queue_name' => 'nullable|string',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $queueName = $validated['queue_name'] ?? null;
+        $reason = $validated['reason'] ?? null;
+
+        QueuePause::pause($queueName, $reason, auth()->id());
+
+        $message = $queueName 
+            ? "Fila '{$queueName}' pausada com sucesso!"
+            : "Todas as filas foram pausadas com sucesso!";
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Retomar fila
+     */
+    public function resumeQueue(Request $request)
+    {
+        $validated = $request->validate([
+            'queue_name' => 'nullable|string',
+        ]);
+
+        $queueName = $validated['queue_name'] ?? null;
+
+        QueuePause::resume($queueName);
+
+        $message = $queueName 
+            ? "Fila '{$queueName}' retomada com sucesso!"
+            : "Todas as filas foram retomadas com sucesso!";
+
+        return redirect()->back()->with('success', $message);
+    }
+
+    /**
+     * Controle de custos
+     */
+    public function costs(Request $request)
+    {
+        $period = $request->get('period', 30); // days
+        $startDate = now()->subDays($period);
+        $endDate = now();
+
+        // API Costs
+        $apiCosts = ApiLog::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
+            ->select(
+                'api_name',
+                DB::raw('SUM(cost) as total_cost'),
+                DB::raw('COUNT(*) as total_calls')
+            )
+            ->groupBy('api_name')
+            ->get();
+
+        $totalApiCost = $apiCosts->sum('total_cost');
+        $totalApiCalls = $apiCosts->sum('total_calls');
+
+        // Cost by user
+        $costsByUser = ApiLog::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
+            ->select(
+                'user_id',
+                DB::raw('SUM(cost) as total_cost'),
+                DB::raw('COUNT(*) as total_calls')
+            )
+            ->groupBy('user_id')
+            ->with('user')
+            ->orderBy('total_cost', 'desc')
+            ->limit(20)
+            ->get();
+
+        // Daily costs for chart
+        $dailyCosts = ApiLog::where('created_at', '>=', $startDate)
+            ->where('created_at', '<=', $endDate)
+            ->select(
+                DB::raw('DATE(created_at) as date'),
+                DB::raw('SUM(cost) as daily_cost'),
+                DB::raw('COUNT(*) as daily_calls')
+            )
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get();
+
+        return view('super-admin.costs', compact(
+            'apiCosts',
+            'totalApiCost',
+            'totalApiCalls',
+            'costsByUser',
+            'dailyCosts',
+            'period',
+            'startDate',
+            'endDate'
+        ));
+    }
+
+    /**
+     * Dashboard SaaS avançado
+     */
+    public function saasDashboard()
+    {
+        $currentPeriodStart = now()->subDays(30);
+        $previousPeriodStart = now()->subDays(60);
+        $previousPeriodEnd = now()->subDays(30);
+
+        // User Growth
+        $currentUsers = User::where('created_at', '>=', $currentPeriodStart)
+            ->where('role', '!=', 'super_admin')
+            ->count();
+        $previousUsers = User::whereBetween('created_at', [$previousPeriodStart, $previousPeriodEnd])
+            ->where('role', '!=', 'super_admin')
+            ->count();
+        $userGrowth = $previousUsers > 0 
+            ? (($currentUsers - $previousUsers) / $previousUsers) * 100 
+            : ($currentUsers > 0 ? 100 : 0);
+
+        // User Loss
+        $currentLostUsers = User::where('is_active', false)
+            ->where('updated_at', '>=', $currentPeriodStart)
+            ->where('role', '!=', 'super_admin')
+            ->count();
+        $previousLostUsers = User::where('is_active', false)
+            ->whereBetween('updated_at', [$previousPeriodStart, $previousPeriodEnd])
+            ->where('role', '!=', 'super_admin')
+            ->count();
+        $userLoss = $previousLostUsers > 0 
+            ? (($currentLostUsers - $previousLostUsers) / $previousLostUsers) * 100 
+            : ($currentLostUsers > 0 ? 100 : 0);
+
+        // MRR
+        $currentMRR = UserPayment::where('type', 'monthly')
+            ->where('payment_date', '>=', $currentPeriodStart)
+            ->sum('amount');
+        $previousMRR = UserPayment::where('type', 'monthly')
+            ->whereBetween('payment_date', [$previousPeriodStart, $previousPeriodEnd])
+            ->sum('amount');
+        $mrrGrowth = $previousMRR > 0 
+            ? (($currentMRR - $previousMRR) / $previousMRR) * 100 
+            : ($currentMRR > 0 ? 100 : 0);
+
+        // Churn Rate
+        $totalActiveUsers = User::where('is_active', true)
+            ->where('role', '!=', 'super_admin')
+            ->count();
+        $churnRate = $totalActiveUsers > 0 
+            ? ($currentLostUsers / $totalActiveUsers) * 100 
+            : 0;
+
+        // LTV (Lifetime Value) - Average revenue per user
+        $totalRevenue = UserPayment::sum('amount');
+        $totalPayingUsers = UserPayment::distinct('user_id')->count('user_id');
+        $ltv = $totalPayingUsers > 0 ? $totalRevenue / $totalPayingUsers : 0;
+
+        // Daily metrics for chart
+        $dailyMetrics = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $date = now()->subDays($i)->startOfDay();
+            $nextDate = $date->copy()->addDay();
+
+            $dailyMetrics[] = [
+                'date' => $date->format('Y-m-d'),
+                'new_users' => User::whereBetween('created_at', [$date, $nextDate])
+                    ->where('role', '!=', 'super_admin')
+                    ->count(),
+                'revenue' => UserPayment::whereBetween('payment_date', [$date, $nextDate])
+                    ->sum('amount'),
+                'active_users' => UserLoginHistory::whereDate('logged_in_at', $date->format('Y-m-d'))
+                    ->distinct('user_id')
+                    ->count('user_id'),
+            ];
+        }
+
+        return view('super-admin.saas-dashboard', compact(
+            'currentUsers',
+            'previousUsers',
+            'userGrowth',
+            'currentLostUsers',
+            'previousLostUsers',
+            'userLoss',
+            'currentMRR',
+            'previousMRR',
+            'mrrGrowth',
+            'churnRate',
+            'ltv',
+            'dailyMetrics'
+        ));
+    }
+
+    /**
+     * Visualizar logs do Laravel
+     */
+    public function logs()
+    {
+        return view('super-admin.logs');
+    }
+
+    /**
+     * Listar plans
+     */
+    public function plans()
+    {
+        $plans = Plan::orderBy('created_at', 'desc')->paginate(20);
+        
+        return view('super-admin.plans', compact('plans'));
+    }
+
+    /**
+     * Criar novo plan
+     */
+    public function createPlan(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'monthly_prospect_quota' => 'required|integer|min:0',
+            'daily_prospect_quota' => 'required|integer|min:0',
+            'price' => 'nullable|numeric|min:0',
+            'is_active' => 'boolean',
+        ]);
+
+        Plan::create([
+            'name' => $validated['name'],
+            'monthly_prospect_quota' => $validated['monthly_prospect_quota'],
+            'daily_prospect_quota' => $validated['daily_prospect_quota'],
+            'price' => $validated['price'] ?? 0,
+            'is_active' => $request->has('is_active'),
+        ]);
+
+        return redirect()->route('super-admin.plans')->with('success', 'Plano criado com sucesso!');
+    }
+
+    /**
+     * Atualizar plan
+     */
+    public function updatePlan(Request $request, Plan $plan)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'monthly_prospect_quota' => 'required|integer|min:0',
+            'daily_prospect_quota' => 'required|integer|min:0',
+            'price' => 'nullable|numeric|min:0',
+            'is_active' => 'boolean',
+        ]);
+
+        $plan->update([
+            'name' => $validated['name'],
+            'monthly_prospect_quota' => $validated['monthly_prospect_quota'],
+            'daily_prospect_quota' => $validated['daily_prospect_quota'],
+            'price' => $validated['price'] ?? 0,
+            'is_active' => $request->has('is_active'),
+        ]);
+
+        return redirect()->route('super-admin.plans')->with('success', 'Plano atualizado com sucesso!');
+    }
+
+    /**
+     * Deletar plan
+     */
+    public function deletePlan(Plan $plan)
+    {
+        // Verifica se há usuários usando este plan
+        $usersCount = $plan->users()->count();
+        
+        if ($usersCount > 0) {
+            return redirect()->back()->with('error', 
+                "Não é possível deletar o plano. Existem {$usersCount} usuário(s) usando este plano."
+            );
+        }
+
+        $plan->delete();
+
+        return redirect()->route('super-admin.plans')->with('success', 'Plano deletado com sucesso!');
     }
 
     /**

@@ -111,19 +111,6 @@
                 </button>
             </form>
 
-            <!-- Register Link -->
-            <div class="mt-8 text-center">
-                <p class="text-gray-600">
-                    Não tem uma conta? 
-                    <a href="{{ route('register') }}" class="font-bold text-neon-lime-300 hover:text-neon-lime-400 transition-colors duration-200 inline-flex items-center group">
-                        <span>Cadastre-se</span>
-                        <svg class="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                        </svg>
-                    </a>
-                </p>
-            </div>
-
             <!-- Forgot Password Link -->
             @if (Route::has('password.request'))
                 <div class="mt-4 text-center">

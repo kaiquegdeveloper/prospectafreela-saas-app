@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\UserLoginHistory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,6 +29,21 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        $user = Auth::user();
+
+        // Register login history
+        UserLoginHistory::create([
+            'user_id' => $user->id,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'logged_in_at' => now(),
+        ]);
+
+        // Redirect super admin to their dashboard
+        if ($user->isSuperAdmin()) {
+            return redirect()->intended(route('super-admin.dashboard', absolute: false));
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 
@@ -36,6 +52,17 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        $user = Auth::user();
+
+        // Update last login history with logout time
+        if ($user) {
+            UserLoginHistory::where('user_id', $user->id)
+                ->whereNull('logged_out_at')
+                ->orderBy('logged_in_at', 'desc')
+                ->first()
+                ?->update(['logged_out_at' => now()]);
+        }
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

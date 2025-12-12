@@ -536,15 +536,24 @@ class GoogleMapsScraperService
      */
     private function getResultLimit(?int $userId): int
     {
-        // Limite padrão: 50
-        $defaultLimit = 50;
+        // Limite padrão: 20 (max_api_fetches)
+        $defaultLimit = 20;
 
         if ($userId === null) {
             return $defaultLimit;
         }
 
-        // Verifica se há limite específico para o usuário
+        // Verifica se há limite customizado de API fetches para o usuário
         $user = User::find($userId);
+        if ($user) {
+            $user->refresh(); // Garante dados atualizados
+            $maxApiFetches = $user->getEffectiveMaxApiFetches();
+            if ($maxApiFetches !== 20) {
+                return $maxApiFetches;
+            }
+        }
+
+        // Fallback para results_limit (legado) se não tiver max_api_fetches_custom
         if ($user && isset($user->results_limit)) {
             return (int) $user->results_limit;
         }

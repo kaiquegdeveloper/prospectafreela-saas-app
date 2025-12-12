@@ -64,5 +64,8 @@ class DatabaseSeeder extends Seeder
 
         // Seed Super Admin
         $this->call(SuperAdminSeeder::class);
+        
+        // Seed Sales Scripts
+        $this->call(SalesScriptsSeeder::class);
     }
 }

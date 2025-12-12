@@ -42,7 +42,7 @@
                                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Role</th>
                                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Status</th>
                                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Estatísticas</th>
-                                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Limite Resultados</th>
+                                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Plano / Quotas</th>
                                 <th class="px-6 py-4 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">Ações</th>
                             </tr>
                         </thead>
@@ -76,36 +76,45 @@
                                         <div>Pagamentos: {{ $user->payments_count }}</div>
                                     </td>
                                     <td class="px-6 py-4">
-                                        <form method="POST" action="{{ route('super-admin.users.update-results-limit', $user) }}" class="inline-flex items-center gap-2">
-                                            @csrf
-                                            <input 
-                                                type="number" 
-                                                name="results_limit" 
-                                                value="{{ $user->results_limit ?? '' }}" 
-                                                placeholder="Padrão"
-                                                min="1" 
-                                                max="500"
-                                                class="w-24 px-2 py-1 text-sm rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                                        <div class="space-y-2">
+                                            <div class="text-xs">
+                                                <strong>Plano:</strong> {{ $user->plan?->name ?? 'Sem plano' }}
+                                            </div>
+                                            <div class="text-xs">
+                                                <strong>Quota Mensal:</strong> 
+                                                {{ $user->monthly_quota_custom ?? ($user->plan?->monthly_prospect_quota ?? 'N/A') }}
+                                            </div>
+                                            <div class="text-xs">
+                                                <strong>Quota Diária:</strong> 
+                                                {{ $user->daily_quota_custom ?? ($user->plan?->daily_prospect_quota ?? 'N/A') }}
+                                            </div>
+                                            <div class="text-xs">
+                                                <strong>Max API Fetches:</strong> 
+                                                {{ $user->max_api_fetches_custom ?? '20 (padrão)' }}
+                                            </div>
+                                            <button 
+                                                onclick="openUserModal({{ $user->id }}, '{{ $user->name }}', {{ $user->plan_id ?? 'null' }}, {{ $user->monthly_quota_custom ?? 'null' }}, {{ $user->daily_quota_custom ?? 'null' }}, {{ $user->max_api_fetches_custom ?? 'null' }})"
+                                                class="mt-1 px-2 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300"
                                             >
-                                            <button type="submit" class="px-3 py-1 text-xs rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300">
-                                                Salvar
+                                                Editar
                                             </button>
-                                        </form>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                            @if($user->results_limit)
-                                                Limite personalizado: {{ $user->results_limit }}
-                                            @else
-                                                Usa padrão do sistema
-                                            @endif
-                                        </p>
+                                        </div>
                                     </td>
                                     <td class="px-6 py-4">
-                                        <form method="POST" action="{{ route('super-admin.users.toggle-status', $user) }}" class="inline">
-                                            @csrf
-                                            <button type="submit" class="px-3 py-1 text-sm rounded-lg {{ $user->is_active ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300' : 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300' }}">
-                                                {{ $user->is_active ? 'Desabilitar' : 'Habilitar' }}
-                                            </button>
-                                        </form>
+                                        <div class="flex flex-col gap-2">
+                                            <form method="POST" action="{{ route('super-admin.users.toggle-status', $user) }}" class="inline">
+                                                @csrf
+                                                <button type="submit" class="w-full px-3 py-1 text-xs rounded-lg {{ $user->is_active ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300' : 'bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300' }}">
+                                                    {{ $user->is_active ? 'Desabilitar' : 'Habilitar' }}
+                                                </button>
+                                            </form>
+                                            <a href="{{ route('super-admin.users.login-history', $user) }}" class="px-3 py-1 text-xs rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 text-center">
+                                                Histórico Login
+                                            </a>
+                                            <a href="{{ route('super-admin.users.modules', $user) }}" class="px-3 py-1 text-xs rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-300 text-center">
+                                                Módulos
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
@@ -124,5 +133,60 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal para editar plano e quotas -->
+    <div id="userModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+            <div class="mt-3">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Editar Plano e Quotas</h3>
+                <form id="userPlanForm" method="POST">
+                    @csrf
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Plano</label>
+                            <select name="plan_id" class="w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900">
+                                <option value="">Sem plano</option>
+                                @foreach(\App\Models\Plan::all() as $plan)
+                                    <option value="{{ $plan->id }}">{{ $plan->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quota Mensal Customizada</label>
+                            <input type="number" name="monthly_quota_custom" min="0" class="w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900" placeholder="Deixe vazio para usar do plano">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quota Diária Customizada</label>
+                            <input type="number" name="daily_quota_custom" min="0" class="w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900" placeholder="Deixe vazio para usar do plano">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max API Fetches Customizado</label>
+                            <input type="number" name="max_api_fetches_custom" min="1" class="w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900" placeholder="Deixe vazio para usar padrão (20)">
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Máximo de resultados que o usuário pode buscar por pesquisa</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-6">
+                        <button type="submit" class="flex-1 px-4 py-2 bg-gradient-to-r from-neon-lime-200 to-neon-lime-300 text-gray-900 font-semibold rounded-lg">Salvar</button>
+                        <button type="button" onclick="closeUserModal()" class="flex-1 px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-semibold rounded-lg">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openUserModal(userId, userName, planId, monthlyQuota, dailyQuota, maxApiFetches) {
+            document.getElementById('userPlanForm').action = `/super-admin/users/${userId}/plan`;
+            document.querySelector('select[name="plan_id"]').value = planId || '';
+            document.querySelector('input[name="monthly_quota_custom"]').value = monthlyQuota || '';
+            document.querySelector('input[name="daily_quota_custom"]').value = dailyQuota || '';
+            document.querySelector('input[name="max_api_fetches_custom"]').value = maxApiFetches || '';
+            document.getElementById('userModal').classList.remove('hidden');
+        }
+
+        function closeUserModal() {
+            document.getElementById('userModal').classList.add('hidden');
+        }
+    </script>
 </x-app-layout>
 

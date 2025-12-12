@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\AppSetting;
 use App\Models\Prospect;
+use App\Models\QueuePause;
 use App\Models\User;
 use App\Models\UserSearch;
 use App\Services\CityNormalizationService;
@@ -26,7 +27,8 @@ class ProcessProspectingJob implements ShouldQueue
     public function __construct(
         public int $userId,
         public string $cidade,
-        public string $nicho
+        public string $nicho,
+        public ?int $maxResults = null
     ) {
         $this->onQueue('prospecting');
     }
@@ -38,6 +40,19 @@ class ProcessProspectingJob implements ShouldQueue
         GoogleMapsScraperService $scraper,
         CityNormalizationService $cityNormalizer
     ): void {
+        // Verifica se a fila está pausada (global ou específica)
+        if (QueuePause::isQueuePaused(null) || QueuePause::isQueuePaused('prospecting')) {
+            Log::info('Prospecting job skipped - queue is paused', [
+                'user_id' => $this->userId,
+                'cidade' => $this->cidade,
+                'nicho' => $this->nicho,
+            ]);
+            
+            // Rejoga o job para a fila para tentar novamente depois
+            $this->release(60); // Tenta novamente em 60 segundos
+            return;
+        }
+
         // Normaliza a cidade ANTES de verificar duplicatas
         $normalizedCity = $cityNormalizer->normalizeCity($this->cidade);
         
@@ -77,8 +92,14 @@ class ProcessProspectingJob implements ShouldQueue
                 'raw_data' => $existingSearch->raw_data, // Reutiliza dados
             ]);
 
+            // Limita os dados se maxResults foi especificado
+            $businessesToProcess = $existingSearch->raw_data;
+            if ($this->maxResults !== null && count($businessesToProcess) > $this->maxResults) {
+                $businessesToProcess = array_slice($businessesToProcess, 0, $this->maxResults);
+            }
+
             // Processa os dados reutilizados
-            $this->processBusinesses($existingSearch->raw_data, $userSearch, $scraper);
+            $this->processBusinesses($businessesToProcess, $userSearch, $scraper);
             return;
         }
 
@@ -117,7 +138,7 @@ class ProcessProspectingJob implements ShouldQueue
 
             // Busca empresas no Google Maps (usa cidade normalizada internamente)
             // O searchBusinesses já verifica banco de dados e cache ANTES de chamar API
-            $businesses = $scraper->searchBusinesses($this->cidade, $this->nicho, $this->userId);
+            $businesses = $scraper->searchBusinesses($this->cidade, $this->nicho, $this->userId, $this->maxResults);
 
             if (empty($businesses)) {
                 $userSearch->update([
@@ -309,14 +330,12 @@ class ProcessProspectingJob implements ShouldQueue
             return ['exceeded' => false, 'message' => ''];
         }
 
-        // Recarrega o relacionamento para pegar valores atualizados
-        $user->load('plan');
-        $plan = $user->plan;
+        // Recarrega o usuário para garantir valores atualizados (incluindo quotas customizadas)
+        $user->refresh();
 
-        $monthlyQuota = $plan?->monthly_prospect_quota
-            ?? AppSetting::get('default_monthly_prospect_quota', 500);
-        $dailyQuota = $plan?->daily_prospect_quota
-            ?? AppSetting::get('default_daily_prospect_quota', 60);
+        // Usa os métodos do User que já verificam quotas customizadas
+        $monthlyQuota = $user->getEffectiveMonthlyQuota();
+        $dailyQuota = $user->getEffectiveDailyQuota();
 
         $today = now()->startOfDay();
         $monthStart = now()->startOfMonth();
