@@ -116,6 +116,19 @@
                                     </button>
                                 @endif
 
+                                @if(session()->has('impersonator_id'))
+                                    <form method="POST" action="{{ route('super-admin.impersonation.leave') }}">
+                                        @csrf
+                                        <button class="w-full flex items-center px-4 py-2 text-sm leading-5 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 focus:outline-none transition duration-150 ease-in-out">
+                                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405M19 13v-2a7 7 0 10-14 0v2m14 0a7 7 0 11-14 0"></path>
+                                            </svg>
+                                            Sair da Impersonação
+                                        </button>
+                                    </form>
+                                    <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                                @endif
+
                                 <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
 
                                 <button 

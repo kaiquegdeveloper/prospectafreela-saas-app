@@ -93,12 +93,12 @@
                         </div>
                         <div class="space-y-1">
                             <p class="text-4xl font-bold text-white">R$ {{ number_format($totalRevenue, 2, ',', '.') }}</p>
-                            <p class="text-sm text-green-100">Faturamento Total</p>
+                            <p class="text-sm text-green-100">Faturamento Total (líquido)</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- MRR -->
+                <!-- Faturamento mensal -->
                 <div class="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 dark:from-amber-600 dark:to-orange-600 p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
                     <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
                     <div class="relative">
@@ -110,8 +110,26 @@
                             </div>
                         </div>
                         <div class="space-y-1">
-                            <p class="text-4xl font-bold text-white">R$ {{ number_format($mrr, 2, ',', '.') }}</p>
-                            <p class="text-sm text-amber-100">MRR (Mensal)</p>
+                            <p class="text-4xl font-bold text-white">R$ {{ number_format($monthlyRevenue, 2, ',', '.') }}</p>
+                            <p class="text-sm text-amber-100">Faturamento Mensal</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Taxa de reembolso -->
+                <div class="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-rose-500 to-pink-500 dark:from-rose-600 dark:to-pink-600 p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-4xl font-bold text-white">{{ number_format($refundRate, 1, ',', '.') }}%</p>
+                            <p class="text-sm text-rose-100">Taxa média de reembolso global</p>
                         </div>
                     </div>
                 </div>

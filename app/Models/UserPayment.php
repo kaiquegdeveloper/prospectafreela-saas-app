@@ -16,6 +16,8 @@ class UserPayment extends Model
         'type',
         'payment_date',
         'notes',
+        'refunded',
+        'refunded_at',
     ];
 
     protected function casts(): array
@@ -23,6 +25,8 @@ class UserPayment extends Model
         return [
             'amount' => 'decimal:2',
             'payment_date' => 'date',
+            'refunded' => 'boolean',
+            'refunded_at' => 'datetime',
         ];
     }
 

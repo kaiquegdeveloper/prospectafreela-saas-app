@@ -49,8 +49,9 @@
                         <input type="number" name="price" step="0.01" min="0" class="w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900" placeholder="0.00">
                     </div>
                     <div class="flex items-end">
+                        <input type="hidden" name="is_active" value="0">
                         <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="checkbox" name="is_active" checked class="rounded border-gray-300 dark:border-gray-700">
+                            <input type="checkbox" name="is_active" value="1" checked class="rounded border-gray-300 dark:border-gray-700">
                             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Ativo</span>
                         </label>
                         <button type="submit" class="ml-4 px-4 py-2 bg-gradient-to-r from-neon-lime-200 to-neon-lime-300 text-gray-900 font-semibold rounded-lg hover:shadow-lg transition">
@@ -165,8 +166,9 @@
                         <input type="number" name="price" id="edit_price" step="0.01" min="0" class="w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900">
                     </div>
                     <div>
+                        <input type="hidden" name="is_active" value="0">
                         <label class="flex items-center space-x-2 cursor-pointer">
-                            <input type="checkbox" name="is_active" id="edit_is_active" class="rounded border-gray-300 dark:border-gray-700">
+                            <input type="checkbox" name="is_active" id="edit_is_active" value="1" class="rounded border-gray-300 dark:border-gray-700">
                             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Ativo</span>
                         </label>
                     </div>

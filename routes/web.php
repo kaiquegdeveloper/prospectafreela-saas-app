@@ -14,9 +14,9 @@ Route::get('/', function () {
 
 Route::get('/dashboard', function () {
     return view('dashboard');
-})->middleware(['auth', 'verified', 'redirect.if.super.admin'])->name('dashboard');
+})->middleware(['auth', 'verified', 'redirect.if.super.admin', 'check.user.active'])->name('dashboard');
 
-Route::middleware(['auth', 'redirect.if.super.admin'])->group(function () {
+Route::middleware(['auth', 'redirect.if.super.admin', 'check.user.active'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -58,6 +58,9 @@ Route::middleware(['auth', 'super.admin'])->prefix('super-admin')->name('super-a
     // Users
     Route::get('/users', [SuperAdminController::class, 'users'])->name('users');
     Route::post('/users/{user}/toggle-status', [SuperAdminController::class, 'toggleUserStatus'])->name('users.toggle-status');
+    Route::post('/users/{user}/refund', [SuperAdminController::class, 'toggleRefund'])->name('users.refund');
+    Route::post('/users/{user}/impersonate', [SuperAdminController::class, 'impersonate'])->name('users.impersonate');
+    Route::post('/impersonation/leave', [SuperAdminController::class, 'leaveImpersonation'])->name('impersonation.leave');
     Route::post('/users/{user}/plan', [SuperAdminController::class, 'updateUserPlan'])->name('users.update-plan');
     Route::get('/users/{user}/login-history', [SuperAdminController::class, 'userLoginHistory'])->name('users.login-history');
     Route::get('/users/{user}/modules', [SuperAdminController::class, 'userModules'])->name('users.modules');

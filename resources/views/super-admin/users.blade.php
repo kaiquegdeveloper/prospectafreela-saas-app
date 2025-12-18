@@ -108,6 +108,18 @@
                                                     {{ $user->is_active ? 'Desabilitar' : 'Habilitar' }}
                                                 </button>
                                             </form>
+                                            <form method="POST" action="{{ route('super-admin.users.refund', $user) }}" class="inline">
+                                                @csrf
+                                                <button type="submit" class="w-full px-3 py-1 text-xs rounded-lg {{ $user->refunded_at ? 'bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-300' : 'bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-300' }}">
+                                                    {{ $user->refunded_at ? 'Remover Reembolso' : 'Marcar Reembolso' }}
+                                                </button>
+                                            </form>
+                                            <form method="POST" action="{{ route('super-admin.users.impersonate', $user) }}" class="inline">
+                                                @csrf
+                                                <button type="submit" class="w-full px-3 py-1 text-xs rounded-lg bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300">
+                                                    Impersonar
+                                                </button>
+                                            </form>
                                             <a href="{{ route('super-admin.users.login-history', $user) }}" class="px-3 py-1 text-xs rounded-lg bg-purple-100 text-purple-700 hover:bg-purple-200 dark:bg-purple-900/30 dark:text-purple-300 text-center">
                                                 Histórico Login
                                             </a>

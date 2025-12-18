@@ -49,6 +49,21 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Verifica se usuário está ativo e não reembolsado
+        $user = Auth::user();
+        if ($user && (!$user->is_active || $user->refunded_at)) {
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+
+            $message = $user->refunded_at
+                ? 'Acesso bloqueado: sua assinatura foi reembolsada.'
+                : 'Acesso bloqueado: sua conta está desativada.';
+
+            throw ValidationException::withMessages([
+                'email' => $message,
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

@@ -25,6 +25,7 @@ class User extends Authenticatable
         'password',
         'role',
         'is_active',
+        'refunded_at',
         'results_limit',
         'monthly_quota_custom',
         'daily_quota_custom',
@@ -53,6 +54,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'refunded_at' => 'datetime',
         ];
     }
 

@@ -32,14 +32,22 @@ class SuperAdminController extends Controller
         // Users Totais
         $totalUsers = User::count();
 
-        // Faturamento Total
-        $totalRevenue = UserPayment::sum('amount');
+        // Faturamento total (considerando apenas pagamentos não reembolsados)
+        $totalRevenue = UserPayment::where('refunded', false)->sum('amount');
 
-        // MRR (Monthly Recurring Revenue) - soma dos pagamentos mensais do mês atual
-        $mrr = UserPayment::where('type', 'monthly')
-            ->whereYear('payment_date', now()->year)
-            ->whereMonth('payment_date', now()->month)
-            ->sum('amount');
+        // Faturamento mensal (MRR) baseado nos planos ativos e não reembolsados
+        $payingUsers = User::where('role', '!=', 'super_admin')
+            ->whereNull('refunded_at')
+            ->where('is_active', true)
+            ->whereNotNull('plan_id')
+            ->with('plan')
+            ->get();
+        $monthlyRevenue = $payingUsers->sum(fn ($user) => $user->plan?->price ?? 0);
+
+        // Taxa de reembolso global
+        $totalPayments = UserPayment::count();
+        $refundedPayments = UserPayment::where('refunded', true)->count();
+        $refundRate = $totalPayments > 0 ? round(($refundedPayments / $totalPayments) * 100, 1) : 0;
 
         // Usos da API (últimos 30 dias)
         $apiUsage30Days = ApiLog::where('created_at', '>=', now()->subDays(30))
@@ -67,11 +75,12 @@ class SuperAdminController extends Controller
             'activeUsers',
             'totalUsers',
             'totalRevenue',
-            'mrr',
+            'monthlyRevenue',
             'apiUsage30Days',
             'apiCost30Days',
             'anomalies',
-            'userUsageStats'
+            'userUsageStats',
+            'refundRate',
         ));
     }
 
@@ -110,11 +119,58 @@ class SuperAdminController extends Controller
      */
     public function toggleUserStatus(User $user)
     {
-        $user->update(['is_active' => !$user->is_active]);
+        $newStatus = !$user->is_active;
+        $user->update(['is_active' => $newStatus]);
+        $user->refresh(); // Recarrega o modelo para garantir que o valor está atualizado
 
         return redirect()->back()->with('success', 
-            "Usuário {$user->name} foi " . ($user->is_active ? 'habilitado' : 'desabilitado') . " com sucesso."
+            "Usuário {$user->name} foi " . ($newStatus ? 'habilitado' : 'desabilitado') . " com sucesso."
         );
+    }
+
+    /**
+     * Marcar/Desmarcar reembolso de um usuário
+     * Se reembolsado, desativa o acesso.
+     */
+    public function toggleRefund(User $user)
+    {
+        $isRefunded = $user->refunded_at !== null;
+
+        if ($isRefunded) {
+            // Reverter reembolso
+            $user->update([
+                'refunded_at' => null,
+                'is_active' => true,
+            ]);
+
+            // Desmarca o pagamento mais recente
+            $lastPayment = $user->payments()->latest('payment_date')->first();
+            if ($lastPayment) {
+                $lastPayment->update([
+                    'refunded' => false,
+                    'refunded_at' => null,
+                ]);
+            }
+
+            return redirect()->back()->with('success', "Reembolso removido e acesso reativado para {$user->name}.");
+        }
+
+        // Marca reembolso e desativa acesso
+        $user->update([
+            'refunded_at' => now(),
+            'is_active' => false,
+        ]);
+
+        // Marca o pagamento mais recente como reembolsado
+        $lastPayment = $user->payments()->latest('payment_date')->first();
+        if ($lastPayment) {
+            $lastPayment->update([
+                'refunded' => true,
+                'refunded_at' => now(),
+            ]);
+        }
+
+        return redirect()->back()->with('success', "Usuário {$user->name} marcado como reembolsado e acesso desativado.");
     }
 
     /**
@@ -357,14 +413,49 @@ class SuperAdminController extends Controller
     }
 
     /**
+     * Impersonar um usuário (somente super admin)
+     */
+    public function impersonate(User $user)
+    {
+        if (!auth()->user()->isSuperAdmin()) {
+            abort(403);
+        }
+
+        session(['impersonator_id' => auth()->id()]);
+        Auth::login($user);
+
+        return redirect()->route('dashboard')->with('success', "Você está acessando como {$user->name}.");
+    }
+
+    /**
+     * Encerrar impersonação e voltar para o super admin original
+     */
+    public function leaveImpersonation()
+    {
+        $impersonatorId = session('impersonator_id');
+
+        if (!$impersonatorId) {
+            return redirect()->route('dashboard');
+        }
+
+        Auth::loginUsingId($impersonatorId);
+        session()->forget('impersonator_id');
+
+        return redirect()->route('super-admin.dashboard')->with('success', 'Você voltou para sua conta de super admin.');
+    }
+
+    /**
      * Atualizar módulos de um usuário
      */
     public function updateUserModules(Request $request, User $user)
     {
         $availableModules = array_keys(UserModule::availableModules());
+        $modulesData = $request->input('modules', []);
 
         foreach ($availableModules as $moduleName) {
-            $isEnabled = $request->has("modules.{$moduleName}");
+            // Se o módulo está no array, está habilitado (checkbox marcado)
+            // Se não está no array, está desabilitado (checkbox não marcado)
+            $isEnabled = isset($modulesData[$moduleName]) && $modulesData[$moduleName] == '1';
 
             UserModule::updateOrCreate(
                 [
@@ -641,7 +732,6 @@ class SuperAdminController extends Controller
             'monthly_prospect_quota' => 'required|integer|min:0',
             'daily_prospect_quota' => 'required|integer|min:0',
             'price' => 'nullable|numeric|min:0',
-            'is_active' => 'boolean',
         ]);
 
         Plan::create([
@@ -649,7 +739,7 @@ class SuperAdminController extends Controller
             'monthly_prospect_quota' => $validated['monthly_prospect_quota'],
             'daily_prospect_quota' => $validated['daily_prospect_quota'],
             'price' => $validated['price'] ?? 0,
-            'is_active' => $request->has('is_active'),
+            'is_active' => $request->input('is_active') == '1',
         ]);
 
         return redirect()->route('super-admin.plans')->with('success', 'Plano criado com sucesso!');
@@ -665,7 +755,6 @@ class SuperAdminController extends Controller
             'monthly_prospect_quota' => 'required|integer|min:0',
             'daily_prospect_quota' => 'required|integer|min:0',
             'price' => 'nullable|numeric|min:0',
-            'is_active' => 'boolean',
         ]);
 
         $plan->update([
@@ -673,7 +762,7 @@ class SuperAdminController extends Controller
             'monthly_prospect_quota' => $validated['monthly_prospect_quota'],
             'daily_prospect_quota' => $validated['daily_prospect_quota'],
             'price' => $validated['price'] ?? 0,
-            'is_active' => $request->has('is_active'),
+            'is_active' => $request->input('is_active') == '1',
         ]);
 
         return redirect()->route('super-admin.plans')->with('success', 'Plano atualizado com sucesso!');
