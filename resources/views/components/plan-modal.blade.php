@@ -1,5 +1,13 @@
 <x-modal name="plan-modal" maxWidth="3xl">
     <div class="p-6">
+        @php
+            $user = auth()->user();
+            $plan = $user->plan;
+            $monthlyQuota = $user->getEffectiveMonthlyQuota();
+            $dailyQuota = $user->getEffectiveDailyQuota();
+            $planPrice = $plan?->price ?? 0;
+        @endphp
+
         <!-- Header -->
         <div class="flex items-center justify-between mb-6">
             <div>
@@ -35,12 +43,12 @@
                                 Plano Atual
                             </h3>
                             <p class="text-sm text-gray-600 dark:text-gray-400">
-                                Ativo desde {{ now()->format('d/m/Y') }}
+                                Ativo desde {{ optional($user->created_at)->format('d/m/Y') ?? now()->format('d/m/Y') }}
                             </p>
                         </div>
                     </div>
                     <span class="px-4 py-2 rounded-full bg-neon-lime-200/30 dark:bg-neon-lime-200/20 text-gray-900 dark:text-gray-100 font-semibold text-sm">
-                        Gratuito
+                        {{ $plan ? 'Plano ' . $plan->name : 'Sem plano' }}
                     </span>
                 </div>
 
@@ -50,27 +58,27 @@
                             <svg class="w-5 h-5 text-neon-lime-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                             </svg>
-                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100">Prospecções</span>
+                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100">Prospecções Mensais</span>
                         </div>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">Ilimitadas</p>
+                        <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ $monthlyQuota }}</p>
                     </div>
                     <div class="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 dark:border-gray-700/50">
                         <div class="flex items-center space-x-2 mb-2">
                             <svg class="w-5 h-5 text-neon-lime-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                             </svg>
-                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100">Exportação</span>
+                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100">Prospecções Diárias</span>
                         </div>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">CSV</p>
+                        <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ $dailyQuota }}</p>
                     </div>
                     <div class="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-xl p-4 border border-gray-200/50 dark:border-gray-700/50">
                         <div class="flex items-center space-x-2 mb-2">
                             <svg class="w-5 h-5 text-neon-lime-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                             </svg>
-                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100">Suporte</span>
+                            <span class="text-sm font-medium text-gray-900 dark:text-gray-100">Valor do Plano</span>
                         </div>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">Básico</p>
+                        <p class="text-2xl font-bold text-gray-900 dark:text-gray-100">R$ {{ number_format($planPrice, 2, ',', '.') }}</p>
                     </div>
                 </div>
             </div>
@@ -107,21 +115,16 @@
             </div>
         </div>
 
-        <!-- Info Box -->
-        <div class="bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 border border-yellow-200 dark:border-yellow-800/50 rounded-xl p-4">
-            <div class="flex items-start space-x-3">
-                <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                </svg>
-                <div>
-                    <h3 class="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-1">
-                        Em Desenvolvimento
-                    </h3>
-                    <p class="text-sm text-yellow-700 dark:text-yellow-300">
-                        Funcionalidades de billing e gerenciamento de assinatura serão implementadas em breve. Você poderá gerenciar sua assinatura, escolher entre diferentes planos e visualizar histórico de pagamentos.
-                    </p>
-                </div>
+        <!-- Upgrade CTA -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-gradient-to-r from-neon-lime-100 to-neon-lime-200 dark:from-neon-lime-200/10 dark:to-neon-lime-200/20 border border-neon-lime-200/50 dark:border-neon-lime-200/30 rounded-xl p-4">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Precisa de mais limites?</h3>
+                <p class="text-sm text-gray-700 dark:text-gray-300">Fale conosco para fazer upgrade do seu plano.</p>
             </div>
+            <a href="https://wa.me/5511978310358?text=Quero%20upgrade%20no%20plano" target="_blank"
+               class="inline-flex items-center px-4 py-2 bg-gray-900 text-white font-semibold rounded-lg shadow hover:shadow-lg hover:scale-[1.02] transition">
+                Conversar no WhatsApp
+            </a>
         </div>
     </div>
 </x-modal>
