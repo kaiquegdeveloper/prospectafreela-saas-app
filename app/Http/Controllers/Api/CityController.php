@@ -53,6 +53,8 @@ class CityController extends Controller
                                 'text' => $displayName,
                                 'city' => $city,
                                 'state' => $state,
+                                'lat' => $item['lat'] ?? null,
+                                'lng' => $item['lon'] ?? null,
                             ];
                         }
                     }
@@ -62,6 +64,76 @@ class CityController extends Controller
             }
         } catch (\Exception $e) {
             \Log::warning('Error searching cities', ['error' => $e->getMessage()]);
+        }
+
+        return response()->json([]);
+    }
+
+    /**
+     * Busca cidades próximas usando coordenadas
+     */
+    public function nearby(Request $request)
+    {
+        $lat = $request->get('lat');
+        $lng = $request->get('lng');
+        
+        if (!$lat || !$lng) {
+            return response()->json([]);
+        }
+
+        try {
+            // Busca cidades próximas usando uma busca ampla na região
+            // Calcula uma bounding box de ~100km ao redor do ponto
+            $latOffset = 0.5; // ~55km
+            $lngOffset = 0.5; // ~55km (no Brasil)
+            
+            $response = Http::timeout(5)
+                ->withHeaders([
+                    'User-Agent' => config('app.name', 'Laravel') . '/' . config('app.version', '1.0'),
+                ])
+                ->get('https://nominatim.openstreetmap.org/search', [
+                    'q' => 'city',
+                    'format' => 'json',
+                    'addressdetails' => 1,
+                    'limit' => 10,
+                    'countrycodes' => 'br',
+                    'accept-language' => 'pt-BR',
+                    'bounded' => 1,
+                    'viewbox' => ($lng - $lngOffset) . ',' . ($lat + $latOffset) . ',' . ($lng + $lngOffset) . ',' . ($lat - $latOffset),
+                ]);
+
+            $nearbyCities = [];
+            if ($response->successful()) {
+                $data = $response->json();
+                
+                foreach ($data as $item) {
+                    $address = $item['address'] ?? [];
+                    $city = $address['city'] ?? $address['town'] ?? $address['village'] ?? $address['municipality'] ?? null;
+                    $state = $address['state'] ?? null;
+                    
+                    if ($city) {
+                        $displayName = $state ? "{$city}, {$state}" : $city;
+                        
+                        // Evita duplicatas
+                        if (!in_array($displayName, array_column($nearbyCities, 'text'))) {
+                            $nearbyCities[] = [
+                                'text' => $displayName,
+                                'city' => $city,
+                                'state' => $state,
+                            ];
+                            
+                            // Limita a 4 cidades próximas
+                            if (count($nearbyCities) >= 4) {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return response()->json($nearbyCities);
+        } catch (\Exception $e) {
+            \Log::warning('Error searching nearby cities', ['error' => $e->getMessage()]);
         }
 
         return response()->json([]);

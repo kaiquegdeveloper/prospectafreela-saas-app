@@ -120,6 +120,12 @@ class ProspectController extends Controller
                 ->withInput();
         }
 
+        // Calcula cota disponível
+        $usage = $this->getUsageData($userId);
+        $availableDaily = max(0, $usage['daily']['quota'] - $usage['daily']['used']);
+        $availableMonthly = max(0, $usage['monthly']['quota'] - $usage['monthly']['used']);
+        $availableQuota = min($availableDaily, $availableMonthly);
+
         // Normaliza cidade para verificar duplicatas
         $cityNormalizer = app(\App\Services\CityNormalizationService::class);
         $normalizedCity = $cityNormalizer->normalizeCity($validated['cidade']);
@@ -158,7 +164,39 @@ class ProspectController extends Controller
                 ->with('info', 'Pesquisa similar encontrada! Reutilizando dados (SEM custo de API)...');
         }
 
-        // Dispatch do job para processar em background (só se não encontrou pesquisa anterior)
+        // Se o número de resultados exceder a cota disponível, quebra em múltiplos jobs
+        if ($maxResults > $availableQuota && $availableQuota > 0) {
+            $jobsCount = ceil($maxResults / $availableQuota);
+            $resultsPerJob = ceil($maxResults / $jobsCount);
+            
+            Log::info('Splitting prospecting into multiple jobs', [
+                'user_id' => $userId,
+                'max_results' => $maxResults,
+                'available_quota' => $availableQuota,
+                'jobs_count' => $jobsCount,
+                'results_per_job' => $resultsPerJob,
+            ]);
+
+            // Cria múltiplos jobs
+            for ($i = 0; $i < $jobsCount; $i++) {
+                $jobResults = min($resultsPerJob, $maxResults - ($i * $resultsPerJob));
+                
+                if ($jobResults > 0) {
+                    ProcessProspectingJob::dispatch(
+                        $userId,
+                        $validated['cidade'],
+                        $validated['nicho'],
+                        $jobResults
+                    );
+                }
+            }
+
+            return redirect()
+                ->route('prospects.index')
+                ->with('success', "Prospecção iniciada! A busca foi dividida em {$jobsCount} job(s) para respeitar sua cota disponível. Os resultados aparecerão em alguns instantes.");
+        }
+
+        // Dispatch do job único para processar em background
         ProcessProspectingJob::dispatch(
             $userId,
             $validated['cidade'],

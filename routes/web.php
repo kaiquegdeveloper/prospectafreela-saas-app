@@ -35,6 +35,7 @@ Route::middleware(['auth', 'redirect.if.super.admin', 'check.user.active'])->gro
     // API routes (usando autenticação por sessão)
     Route::prefix('api')->group(function () {
         Route::get('/cities/search', [CityController::class, 'search'])->name('api.cities.search');
+        Route::get('/cities/nearby', [CityController::class, 'nearby'])->name('api.cities.nearby');
         Route::get('/prospects/check-new', [ProspectController::class, 'checkNew'])->name('api.prospects.check-new');
     });
     
