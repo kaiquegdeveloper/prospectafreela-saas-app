@@ -221,6 +221,11 @@
         </div>
     </div>
 
+    <!-- Modal de Quota Excedida -->
+    @if(isset($quotaData) && $quotaData['exceeded'])
+        <x-quota-exceeded-modal :quotaData="$quotaData" :user="$user" />
+    @endif
+
     <!-- Modal Buscar Mais Resultados -->
     <div id="searchMoreModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">

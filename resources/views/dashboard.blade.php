@@ -13,7 +13,12 @@
                         </p>
                     </div>
                     <div class="mt-4 sm:mt-0">
-                        <a href="{{ route('prospects.create') }}" class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 group">
+                        @php
+                            $canProspect = !isset($quotaData) || !$quotaData['exceeded'];
+                        @endphp
+                        <a href="{{ route('prospects.create') }}" 
+                           @if(!$canProspect) onclick="event.preventDefault(); openQuotaModal();" @endif
+                           class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 group @if(!$canProspect) opacity-75 cursor-not-allowed @endif">
                             <svg class="w-5 h-5 mr-2 group-hover:scale-110 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                             </svg>
@@ -157,7 +162,12 @@
                 <div class="rounded-2xl bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-6">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">Ações Rápidas</h3>
                     <div class="grid grid-cols-2 gap-4">
-                        <a href="{{ route('prospects.create') }}" class="group relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 p-4 hover:shadow-lg transition-all duration-200 hover:scale-105">
+                        @php
+                            $canProspect = !isset($quotaData) || !$quotaData['exceeded'];
+                        @endphp
+                        <a href="{{ route('prospects.create') }}" 
+                           @if(!$canProspect) onclick="event.preventDefault(); openQuotaModal();" @endif
+                           class="group relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 p-4 hover:shadow-lg transition-all duration-200 hover:scale-105 @if(!$canProspect) opacity-75 cursor-not-allowed @endif">
                             <div class="relative z-10">
                                 <svg class="w-8 h-8 text-white mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -306,4 +316,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal de Quota Excedida -->
+    @if(isset($quotaData) && $quotaData['exceeded'])
+        <x-quota-exceeded-modal :quotaData="$quotaData" :user="$user" />
+    @endif
 </x-app-layout>

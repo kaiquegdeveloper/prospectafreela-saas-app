@@ -284,6 +284,11 @@
         </div>
     </div>
 
+    <!-- Modal de Quota Excedida -->
+    @if(isset($quotaData) && $quotaData['exceeded'])
+        <x-quota-exceeded-modal :quotaData="$quotaData" :user="$user" />
+    @endif
+
     @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function() {

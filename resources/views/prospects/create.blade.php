@@ -67,31 +67,6 @@
                             $dailyExceeded = $usage['daily']['quota'] > 0 && $usage['daily']['used'] >= $usage['daily']['quota'];
                             $monthlyExceeded = $usage['monthly']['quota'] > 0 && $usage['monthly']['used'] >= $usage['monthly']['quota'];
                         @endphp
-                        @if($dailyExceeded || $monthlyExceeded)
-                            <div class="mb-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
-                                <div class="flex">
-                                    <div class="flex-shrink-0">
-                                        <svg class="h-5 w-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                                        </svg>
-                                    </div>
-                                    <div class="ml-3">
-                                        <h3 class="text-sm font-medium text-amber-800 dark:text-amber-200">
-                                            Atenção: Cota Atingida
-                                        </h3>
-                                        <div class="mt-2 text-sm text-amber-700 dark:text-amber-300">
-                                            @if($dailyExceeded && $monthlyExceeded)
-                                                <p>Você atingiu o limite diário (<strong>{{ $usage['daily']['used'] }}/{{ $usage['daily']['quota'] }}</strong>) e mensal (<strong>{{ $usage['monthly']['used'] }}/{{ $usage['monthly']['quota'] }}</strong>) de prospects.</p>
-                                            @elseif($dailyExceeded)
-                                                <p>Você atingiu o limite diário de prospects (<strong>{{ $usage['daily']['used'] }}/{{ $usage['daily']['quota'] }}</strong>). Tente novamente amanhã.</p>
-                                            @elseif($monthlyExceeded)
-                                                <p>Você atingiu o limite mensal de prospects (<strong>{{ $usage['monthly']['used'] }}/{{ $usage['monthly']['quota'] }}</strong>). Entre em contato para aumentar sua cota.</p>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
                     @endif
 
                     <form method="POST" action="{{ route('prospects.store') }}">
@@ -403,10 +378,15 @@
                             </a>
                             @php
                                 $canProspect = true;
-                                if (isset($usage)) {
+                                $quotaExceeded = false;
+                                if (isset($quotaData) && $quotaData['exceeded']) {
+                                    $quotaExceeded = true;
+                                    $canProspect = false;
+                                } elseif (isset($usage)) {
                                     $dailyExceeded = $usage['daily']['quota'] > 0 && $usage['daily']['used'] >= $usage['daily']['quota'];
                                     $monthlyExceeded = $usage['monthly']['quota'] > 0 && $usage['monthly']['used'] >= $usage['monthly']['quota'];
                                     $canProspect = !$dailyExceeded && !$monthlyExceeded;
+                                    $quotaExceeded = $dailyExceeded || $monthlyExceeded;
                                 }
                             @endphp
                             <button type="submit" 
@@ -421,12 +401,27 @@
                                     Cota Atingida
                                 @endif
                             </button>
+                            @if($quotaExceeded)
+                                <button type="button" 
+                                        onclick="openQuotaModal()"
+                                        class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 border border-transparent rounded-xl font-semibold text-sm text-white shadow-lg shadow-red-500/30 hover:shadow-xl hover:shadow-red-500/40 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200">
+                                    <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                    </svg>
+                                    Ver Opções
+                                </button>
+                            @endif
                         </div>
                     </form>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Modal de Quota Excedida -->
+    @if(isset($quotaData) && $quotaData['exceeded'])
+        <x-quota-exceeded-modal :quotaData="$quotaData" :user="$user" />
+    @endif
 
     @push('scripts')
     <script>

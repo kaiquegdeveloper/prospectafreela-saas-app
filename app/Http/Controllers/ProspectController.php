@@ -22,6 +22,7 @@ class ProspectController extends Controller
     public function index(Request $request)
     {
         $userId = Auth::id();
+        $user = Auth::user();
 
         $query = Prospect::forUser($userId)
             ->with('lead')
@@ -54,6 +55,9 @@ class ProspectController extends Controller
         // Uso de cota (diária e mensal)
         $usage = $this->getUsageData($userId);
 
+        // Verifica se a cota foi excedida
+        $quotaCheck = $this->checkQuotaExceeded($userId);
+
         // Mensagem padrão para WhatsApp
         $whatsappMessage = ContactMessageTemplate::where('channel', 'whatsapp')
             ->where('is_active', true)
@@ -65,6 +69,8 @@ class ProspectController extends Controller
             'niches' => $niches,
             'usage' => $usage,
             'whatsappMessage' => $whatsappMessage,
+            'quotaData' => $quotaCheck,
+            'user' => $user,
         ]);
     }
 
@@ -79,6 +85,9 @@ class ProspectController extends Controller
 
         $usage = $this->getUsageData($userId);
         $maxApiFetches = $user->getEffectiveMaxApiFetches();
+
+        // Verifica se a cota foi excedida
+        $quotaCheck = $this->checkQuotaExceeded($userId);
 
         // Busca sugestões de cidades das últimas pesquisas
         $suggestedCities = UserSearch::where('user_id', $userId)
@@ -114,6 +123,8 @@ class ProspectController extends Controller
             'suggestedCities' => $suggestedCities,
             'suggestedNiches' => $suggestedNiches,
             'services' => $services,
+            'quotaData' => $quotaCheck,
+            'user' => $user,
         ]);
     }
 
@@ -425,11 +436,49 @@ class ProspectController extends Controller
         $dailyExceeded = $usage['daily']['quota'] > 0 && $usage['daily']['used'] >= $usage['daily']['quota'];
         $monthlyExceeded = $usage['monthly']['quota'] > 0 && $usage['monthly']['used'] >= $usage['monthly']['quota'];
 
+        // Calcula tempo até reinício
+        $dailyReset = null;
+        $monthlyReset = null;
+
+        if ($dailyExceeded) {
+            // Próxima meia-noite
+            $tomorrow = now()->copy()->addDay()->startOfDay();
+            $now = now();
+            $secondsUntilReset = $tomorrow->diffInSeconds($now);
+            $hours = floor($secondsUntilReset / 3600);
+            $minutes = floor(($secondsUntilReset % 3600) / 60);
+            
+            $dailyReset = [
+                'hours' => $hours,
+                'minutes' => $minutes,
+                'timestamp' => $tomorrow->toIso8601String(),
+            ];
+        }
+
+        if ($monthlyExceeded) {
+            // Primeiro dia do próximo mês
+            $nextMonth = now()->copy()->addMonth()->startOfMonth();
+            $now = now();
+            $secondsUntilReset = $nextMonth->diffInSeconds($now);
+            $days = floor($secondsUntilReset / 86400);
+            $hours = floor(($secondsUntilReset % 86400) / 3600);
+            $minutes = floor(($secondsUntilReset % 3600) / 60);
+            
+            $monthlyReset = [
+                'days' => $days,
+                'hours' => $hours,
+                'minutes' => $minutes,
+                'timestamp' => $nextMonth->toIso8601String(),
+            ];
+        }
+
         if ($dailyExceeded && $monthlyExceeded) {
             return [
                 'exceeded' => true,
                 'message' => "Você atingiu o limite diário ({$usage['daily']['used']}/{$usage['daily']['quota']}) e mensal ({$usage['monthly']['used']}/{$usage['monthly']['quota']}) de prospects. Entre em contato para aumentar sua cota ou aguarde até o próximo período.",
-                'type' => 'both'
+                'type' => 'both',
+                'daily' => ['exceeded' => true, 'reset_at' => $dailyReset],
+                'monthly' => ['exceeded' => true, 'reset_at' => $monthlyReset],
             ];
         }
 
@@ -437,7 +486,9 @@ class ProspectController extends Controller
             return [
                 'exceeded' => true,
                 'message' => "Você atingiu o limite diário de prospects ({$usage['daily']['used']}/{$usage['daily']['quota']}). Tente novamente amanhã ou entre em contato para aumentar sua cota.",
-                'type' => 'daily'
+                'type' => 'daily',
+                'daily' => ['exceeded' => true, 'reset_at' => $dailyReset],
+                'monthly' => ['exceeded' => false, 'reset_at' => null],
             ];
         }
 
@@ -445,14 +496,18 @@ class ProspectController extends Controller
             return [
                 'exceeded' => true,
                 'message' => "Você atingiu o limite mensal de prospects ({$usage['monthly']['used']}/{$usage['monthly']['quota']}). Entre em contato para aumentar sua cota ou aguarde o próximo mês.",
-                'type' => 'monthly'
+                'type' => 'monthly',
+                'daily' => ['exceeded' => false, 'reset_at' => null],
+                'monthly' => ['exceeded' => true, 'reset_at' => $monthlyReset],
             ];
         }
 
         return [
             'exceeded' => false,
             'message' => '',
-            'type' => null
+            'type' => null,
+            'daily' => ['exceeded' => false, 'reset_at' => null],
+            'monthly' => ['exceeded' => false, 'reset_at' => null],
         ];
     }
 
@@ -583,8 +638,14 @@ class ProspectController extends Controller
             return $b['created_at'] <=> $a['created_at'];
         });
 
+        // Verifica se a cota foi excedida
+        $quotaCheck = $this->checkQuotaExceeded($userId);
+        $user = Auth::user();
+
         return view('searches.my', [
             'searches' => $groupedSearches,
+            'quotaData' => $quotaCheck,
+            'user' => $user,
         ]);
     }
 
@@ -740,6 +801,46 @@ class ProspectController extends Controller
 
         // Fallback: retorna CSV (Excel pode abrir CSV)
         return $this->exportSearchCsv($search);
+    }
+
+    /**
+     * Ativa 30 buscas gratuitas para o usuário (limitado a 1 vez)
+     */
+    public function activateFreeSearches(Request $request)
+    {
+        $user = Auth::user();
+        $user->refresh();
+
+        // Verifica se já usou as buscas gratuitas
+        if ($user->free_searches_used) {
+            return redirect()
+                ->back()
+                ->withErrors(['quota' => 'Você já utilizou suas buscas gratuitas. Entre em contato para mais créditos.']);
+        }
+
+        // Adiciona 30 buscas à cota diária e mensal
+        $currentDailyQuota = $user->getEffectiveDailyQuota();
+        $currentMonthlyQuota = $user->getEffectiveMonthlyQuota();
+        
+        // Se não tem quota customizada, usa a do plano e adiciona 30
+        if (!$user->daily_quota_custom) {
+            $user->daily_quota_custom = $currentDailyQuota + 30;
+        } else {
+            $user->daily_quota_custom += 30;
+        }
+        
+        if (!$user->monthly_quota_custom) {
+            $user->monthly_quota_custom = $currentMonthlyQuota + 30;
+        } else {
+            $user->monthly_quota_custom += 30;
+        }
+        
+        $user->free_searches_used = true;
+        $user->save();
+
+        return redirect()
+            ->back()
+            ->with('success', 'Parabéns! Você ganhou 30 buscas gratuitas! Agora você pode continuar prospectando.');
     }
 
     /**
