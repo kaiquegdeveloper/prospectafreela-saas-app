@@ -14,6 +14,7 @@ class ExampleTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        // A rota raiz redireciona para /dashboard que requer autenticação
+        $response->assertStatus(302);
     }
 }
