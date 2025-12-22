@@ -13,23 +13,27 @@
                         </p>
                     </div>
                     <div class="mt-4 sm:mt-0">
-                        <a href="{{ route('prospects.create') }}" class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-neon-lime-200 to-neon-lime-300 text-gray-900 font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 group">
-                            <svg class="w-5 h-5 mr-2 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        <a href="{{ route('prospects.create') }}" class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 group">
+                            <svg class="w-5 h-5 mr-2 group-hover:scale-110 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                             </svg>
-                            Nova Prospecção
+                            Achar clientes
                         </a>
                     </div>
                 </div>
             </div>
 
             <!-- Stats Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 @php
-                    $totalProspects = auth()->user()->prospects()->count();
-                    $concluidos = auth()->user()->prospects()->where('status', 'done')->count();
-                    $pendentes = auth()->user()->prospects()->where('status', 'pending')->count();
+                    $user = auth()->user();
+                    $totalProspects = $user->prospects()->count();
+                    $concluidos = $user->prospects()->where('status', 'done')->count();
+                    $pendentes = $user->prospects()->where('status', 'pending')->count();
                     $taxaSucesso = $totalProspects > 0 ? round(($concluidos / $totalProspects) * 100, 1) : 0;
+                    $totalSearches = $user->searches()->where('status', 'completed')->count();
+                    $prospectsWithEmail = $user->prospects()->whereNotNull('email')->where('email', '!=', '')->count();
+                    $prospectsWithSite = $user->prospects()->whereNotNull('site')->where('site', '!=', '')->count();
                 @endphp
 
                 <!-- Total Prospects Card -->
@@ -94,6 +98,27 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Pesquisas Salvas Card -->
+                <div class="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 dark:from-purple-600 dark:to-pink-600 p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+                    <div class="relative">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-medium text-purple-100">Pesquisas</p>
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-4xl font-bold text-white">{{ $totalSearches }}</p>
+                            <p class="text-sm text-purple-100">Pesquisas salvas</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Chart Section -->
@@ -132,12 +157,12 @@
                 <div class="rounded-2xl bg-white dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-6">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-6">Ações Rápidas</h3>
                     <div class="grid grid-cols-2 gap-4">
-                        <a href="{{ route('prospects.create') }}" class="group relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 p-4 hover:shadow-lg transition-all duration-200 hover:scale-105">
+                        <a href="{{ route('prospects.create') }}" class="group relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-600 to-blue-600 p-4 hover:shadow-lg transition-all duration-200 hover:scale-105">
                             <div class="relative z-10">
                                 <svg class="w-8 h-8 text-white mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                                 </svg>
-                                <p class="text-sm font-semibold text-white">Nova Prospecção</p>
+                                <p class="text-sm font-semibold text-white">Achar clientes</p>
                             </div>
                         </a>
                         <a href="{{ route('prospects.index') }}" class="group relative overflow-hidden rounded-xl bg-gradient-to-br from-gray-600 to-gray-700 dark:from-gray-700 dark:to-gray-800 p-4 hover:shadow-lg transition-all duration-200 hover:scale-105">
@@ -148,6 +173,14 @@
                                 <p class="text-sm font-semibold text-white">Ver Todos</p>
                             </div>
                         </a>
+                        <a href="{{ route('searches.my') }}" class="group relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 p-4 hover:shadow-lg transition-all duration-200 hover:scale-105">
+                            <div class="relative z-10">
+                                <svg class="w-8 h-8 text-white mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                                </svg>
+                                <p class="text-sm font-semibold text-white">Minhas Pesquisas</p>
+                            </div>
+                        </a>
                         <a href="{{ route('prospects.export') }}" class="group relative overflow-hidden rounded-xl bg-gradient-to-br from-green-500 to-green-600 p-4 hover:shadow-lg transition-all duration-200 hover:scale-105">
                             <div class="relative z-10">
                                 <svg class="w-8 h-8 text-white mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,14 +189,21 @@
                                 <p class="text-sm font-semibold text-white">Exportar CSV</p>
                             </div>
                         </a>
-                        <button @click="$dispatch('open-modal', 'plan-modal')" class="group relative overflow-hidden rounded-xl bg-gradient-to-br from-neon-lime-200 to-neon-lime-300 p-4 hover:shadow-lg transition-all duration-200 hover:scale-105">
-                            <div class="relative z-10">
-                                <svg class="w-8 h-8 text-gray-900 mb-2 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                                </svg>
-                                <p class="text-sm font-semibold text-gray-900">Meu Plano</p>
+                    </div>
+                    
+                    <!-- Estatísticas Adicionais -->
+                    <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Qualidade dos Prospects</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3">
+                                <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Com E-mail</p>
+                                <p class="text-lg font-bold text-blue-600 dark:text-blue-400">{{ $prospectsWithEmail }}</p>
                             </div>
-                        </button>
+                            <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+                                <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Com Site</p>
+                                <p class="text-lg font-bold text-green-600 dark:text-green-400">{{ $prospectsWithSite }}</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

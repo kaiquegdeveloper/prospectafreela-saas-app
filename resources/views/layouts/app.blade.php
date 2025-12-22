@@ -54,6 +54,20 @@
         <!-- Plan Modal -->
         <x-plan-modal />
         
+        <!-- Botão Flutuante Achar Clientes -->
+        @auth
+            @if(!request()->is('prospects/create'))
+                <a href="{{ route('prospects.create') }}" 
+                   class="fixed bottom-6 right-6 z-50 inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-3xl hover:scale-110 transition-all duration-300 group"
+                   title="Achar clientes">
+                    <svg class="w-8 h-8 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <span class="sr-only">Achar clientes</span>
+                </a>
+            @endif
+        @endauth
+        
         @stack('scripts')
     </body>
 </html>

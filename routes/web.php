@@ -29,6 +29,7 @@ Route::middleware(['auth', 'redirect.if.super.admin', 'check.user.active'])->gro
     
     // Saved Searches routes
     Route::get('/minhas-pesquisas', [ProspectController::class, 'mySearches'])->name('searches.my');
+    Route::post('/pesquisas/{searchId}/buscar-mais', [ProspectController::class, 'searchMore'])->name('searches.search-more');
     Route::get('/pesquisas/{searchId}/exportar-csv', [ProspectController::class, 'exportSearchCsv'])->name('searches.export.csv');
     Route::get('/pesquisas/{searchId}/exportar-xlsx', [ProspectController::class, 'exportSearchXlsx'])->name('searches.export.xlsx');
     

@@ -91,6 +91,7 @@ class Prospect extends Model
     /**
      * Normalized WhatsApp number (for wa.me links).
      * Falls back to telefone if whatsapp is empty.
+     * Formato esperado: 55XXXXXXXXXXX (DDI + DDD + número)
      */
     public function getWhatsappLinkNumberAttribute(): ?string
     {
@@ -100,24 +101,49 @@ class Prospect extends Model
             return null;
         }
 
+        // Remove todos os caracteres não numéricos
         $digits = preg_replace('/\D/', '', $number);
 
-        if ($digits === '') {
+        if ($digits === '' || strlen($digits) < 10) {
             return null;
         }
 
-        // Já vem com DDI 55
-        if (str_starts_with($digits, '55')) {
-            return $digits;
+        // Se já começa com 55 e tem pelo menos 12 dígitos (55 + 10 ou 11 dígitos)
+        if (str_starts_with($digits, '55') && strlen($digits) >= 12) {
+            // Garante que tem exatamente 13 dígitos (55 + DDD + 9 dígitos) ou 12 (55 + DDD + 8 dígitos)
+            if (strlen($digits) === 12 || strlen($digits) === 13) {
+                return $digits;
+            }
+            // Se tem mais de 13, pega apenas os primeiros 13
+            if (strlen($digits) > 13) {
+                return substr($digits, 0, 13);
+            }
         }
 
-        // Caso típico brasileiro: DDD + número (10 ou 11 dígitos)
+        // Remove o zero inicial se houver (formato antigo brasileiro)
+        if (str_starts_with($digits, '0')) {
+            $digits = substr($digits, 1);
+        }
+
+        // Caso típico brasileiro: DDD (2 dígitos) + número (8 ou 9 dígitos)
         if (strlen($digits) === 10 || strlen($digits) === 11) {
             return '55' . $digits;
         }
 
-        // Fallback: retorna o que foi possível normalizar
-        return $digits;
+        // Se tem 8 ou 9 dígitos sem DDD, assume DDD padrão (não ideal, mas melhor que nada)
+        if (strlen($digits) === 8 || strlen($digits) === 9) {
+            // Tenta extrair DDD do telefone original se possível
+            // Por enquanto, retorna null pois não temos DDD
+            return null;
+        }
+
+        // Fallback: se tem mais de 11 dígitos sem 55, pode ser formato internacional
+        if (strlen($digits) > 11 && !str_starts_with($digits, '55')) {
+            // Assume que já está no formato correto ou adiciona 55
+            return '55' . substr($digits, -11); // Pega os últimos 11 dígitos
+        }
+
+        return null;
     }
 }
 

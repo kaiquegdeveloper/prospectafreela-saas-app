@@ -28,7 +28,10 @@ class ProcessProspectingJob implements ShouldQueue
         public int $userId,
         public string $cidade,
         public string $nicho,
-        public ?int $maxResults = null
+        public ?int $maxResults = null,
+        public ?string $servico = null,
+        public bool $onlyValidEmail = false,
+        public bool $onlyValidSite = false
     ) {
         $this->onQueue('prospecting');
     }
@@ -88,6 +91,9 @@ class ProcessProspectingJob implements ShouldQueue
                 'cidade' => $this->cidade,
                 'normalized_cidade' => $normalizedCity,
                 'nicho' => $this->nicho,
+                'servico' => $this->servico,
+                'only_valid_email' => $this->onlyValidEmail,
+                'only_valid_site' => $this->onlyValidSite,
                 'status' => 'pending',
                 'raw_data' => $existingSearch->raw_data, // Reutiliza dados
             ]);
@@ -109,6 +115,9 @@ class ProcessProspectingJob implements ShouldQueue
             'cidade' => $this->cidade,
             'normalized_cidade' => $normalizedCity,
             'nicho' => $this->nicho,
+            'servico' => $this->servico,
+            'only_valid_email' => $this->onlyValidEmail,
+            'only_valid_site' => $this->onlyValidSite,
             'status' => 'pending',
         ]);
 
@@ -259,15 +268,43 @@ class ProcessProspectingJob implements ShouldQueue
                 if (!empty($website)) {
                     $websiteData = $scraper->scrapeWebsite($website);
                     
+                    $email = $websiteData['email'] ?? null;
+                    $hasValidEmail = !empty($email) && $this->isValidEmail($email);
+                    $hasValidSite = $this->isValidSite($website);
+                    
+                    // Aplica filtros se solicitado
+                    if ($this->onlyValidEmail && !$hasValidEmail) {
+                        $prospect->delete(); // Remove prospect sem email válido
+                        continue;
+                    }
+                    
+                    if ($this->onlyValidSite && !$hasValidSite) {
+                        $prospect->delete(); // Remove prospect sem site válido
+                        continue;
+                    }
+                    
                     $prospect->update([
-                        'email' => $websiteData['email'],
+                        'email' => $email,
                         'whatsapp' => $websiteData['whatsapp'],
                         // Mantém telefone da API se não tiver do site
                         'telefone' => $websiteData['telefone'] ?? $phone,
                         'status' => 'done',
                     ]);
                 } else {
-                    // Se não tem site mas tem telefone, marca como done
+                    // Se não tem site mas tem telefone
+                    if ($this->onlyValidSite) {
+                        // Se filtro de site válido está ativo e não tem site, remove
+                        $prospect->delete();
+                        continue;
+                    }
+                    
+                    // Verifica se precisa de email válido
+                    if ($this->onlyValidEmail) {
+                        // Sem site, não tem como ter email válido, remove
+                        $prospect->delete();
+                        continue;
+                    }
+                    
                     $prospect->update(['status' => 'done']);
                 }
 
@@ -380,6 +417,63 @@ class ProcessProspectingJob implements ShouldQueue
             'message' => '',
             'type' => null
         ];
+    }
+
+    /**
+     * Valida se o email é válido
+     */
+    private function isValidEmail(?string $email): bool
+    {
+        if (empty($email)) {
+            return false;
+        }
+        
+        // Validação básica de formato
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+        
+        // Filtra emails comuns que não são válidos
+        $invalidDomains = ['example.com', 'test.com', 'email.com', 'domain.com', 'noreply.com', 'no-reply.com'];
+        $domain = substr(strrchr($email, "@"), 1);
+        
+        foreach ($invalidDomains as $invalid) {
+            if (str_contains(strtolower($domain), strtolower($invalid))) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Valida se o site é válido (verifica se está acessível)
+     */
+    private function isValidSite(?string $url): bool
+    {
+        if (empty($url)) {
+            return false;
+        }
+        
+        try {
+            // Normaliza a URL
+            if (!str_starts_with($url, 'http')) {
+                $url = 'https://' . $url;
+            }
+            
+            // Faz uma requisição HEAD para verificar se o site está acessível
+            $response = \Illuminate\Support\Facades\Http::timeout(5)
+                ->withHeaders([
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                ])
+                ->head($url);
+            
+            // Considera válido se retornar status 2xx ou 3xx
+            return $response->successful() || $response->redirect();
+        } catch (\Exception $e) {
+            Log::debug('Site validation failed', ['url' => $url, 'error' => $e->getMessage()]);
+            return false;
+        }
     }
 
     /**

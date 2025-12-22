@@ -1,14 +1,14 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
                 {{ __('Minhas Pesquisas Salvas') }}
             </h2>
-            <a href="{{ route('prospects.create') }}" class="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-700 focus:bg-blue-700 active:bg-blue-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+            <a href="{{ route('prospects.create') }}" class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:from-indigo-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150 shadow-lg hover:shadow-xl">
                 <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                 </svg>
-                Nova Prospecção
+                Buscar clientes
             </a>
         </div>
     </x-slot>
@@ -68,6 +68,45 @@
             @endif
 
             @if(count($searches) > 0)
+                <!-- Barra de Busca -->
+                <div class="mb-6 bg-white dark:bg-gray-800 overflow-hidden shadow-lg sm:rounded-xl border border-gray-200 dark:border-gray-700">
+                    <div class="p-6">
+                        <form method="GET" action="{{ route('searches.my') }}" class="flex flex-col sm:flex-row gap-4 items-end">
+                            <div class="flex-1 min-w-[200px] w-full">
+                                <label for="search" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                    <span class="flex items-center gap-1.5">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                        </svg>
+                                        Buscar pesquisas
+                                    </span>
+                                </label>
+                                <input type="text" 
+                                       name="search" 
+                                       id="search"
+                                       value="{{ request('search') }}"
+                                       placeholder="Digite cidade, nicho ou serviço..."
+                                       class="block w-full rounded-xl border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:bg-gray-700 dark:border-gray-600 dark:text-white px-4 py-3 transition-all duration-200">
+                            </div>
+                            <div class="flex items-end gap-2 w-full sm:w-auto">
+                                <button type="submit" class="flex-1 sm:flex-none inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold rounded-xl hover:from-indigo-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-md hover:shadow-lg transition-all duration-200">
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                    Buscar
+                                </button>
+                                @if(request()->has('search'))
+                                    <a href="{{ route('searches.my') }}" class="inline-flex items-center justify-center px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </a>
+                                @endif
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
                 <!-- Grid de Blocos de Pesquisas -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     @foreach($searches as $search)
@@ -119,13 +158,23 @@
                                 <!-- Botões de Ação -->
                                 <div class="space-y-3">
                                     <!-- Ver Pesquisa -->
-                                    <a href="{{ route('prospects.index', ['cidade' => $search['cidade'], 'nicho' => $search['nicho']]) }}" class="block w-full inline-flex items-center justify-center px-4 py-3 bg-gradient-to-r from-neon-lime-200 to-neon-lime-300 text-gray-900 font-semibold rounded-lg hover:from-neon-lime-300 hover:to-neon-lime-400 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105">
+                                    <a href="{{ route('prospects.index', ['cidade' => $search['cidade'], 'nicho' => $search['nicho']]) }}" class="block w-full inline-flex items-center justify-center px-4 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105">
                                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                         </svg>
                                         Ver Pesquisa
                                     </a>
+
+                                    <!-- Buscar Mais Resultados -->
+                                    <button type="button" 
+                                            onclick="openSearchMoreModal({{ $search['search_id'] }}, '{{ $search['cidade'] }}', '{{ $search['nicho'] }}')"
+                                            class="w-full inline-flex items-center justify-center px-4 py-3 bg-gradient-to-r from-neon-lime-200 to-neon-lime-300 text-gray-900 font-semibold rounded-lg hover:from-neon-lime-300 hover:to-neon-lime-400 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105">
+                                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                        </svg>
+                                        Buscar Mais Resultados
+                                    </button>
 
                                     <!-- Botões de Exportação -->
                                     <div class="grid grid-cols-2 gap-2">
@@ -171,4 +220,149 @@
             @endif
         </div>
     </div>
+
+    <!-- Modal Buscar Mais Resultados -->
+    <div id="searchMoreModal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeSearchMoreModal()"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <form id="searchMoreForm" method="POST" action="">
+                    @csrf
+                    <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 dark:bg-indigo-900 sm:mx-0 sm:h-10 sm:w-10">
+                                <svg class="h-6 w-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100" id="modal-title">
+                                    Buscar Mais Resultados
+                                </h3>
+                                <div class="mt-4">
+                                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                                        <span id="modal-city-nicho"></span>
+                                    </p>
+                                    <div>
+                                        <label for="max_results_modal" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                            Quantos resultados buscar?
+                                        </label>
+                                        <div class="space-y-4">
+                                            <div class="flex items-center gap-4">
+                                                <div class="flex-1">
+                                                    <input type="range" 
+                                                           id="max_results_modal_slider"
+                                                           min="1" 
+                                                           max="{{ auth()->user()->getEffectiveMaxApiFetches() }}" 
+                                                           value="{{ auth()->user()->getEffectiveMaxApiFetches() }}"
+                                                           class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                                                </div>
+                                                <div class="w-24">
+                                                    <input type="number" 
+                                                           name="max_results" 
+                                                           id="max_results_modal"
+                                                           min="1" 
+                                                           max="{{ auth()->user()->getEffectiveMaxApiFetches() }}"
+                                                           value="{{ auth()->user()->getEffectiveMaxApiFetches() }}"
+                                                           required
+                                                           class="block w-full rounded-xl border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:bg-gray-700 dark:text-white px-4 py-2.5 text-center font-semibold text-lg">
+                                                </div>
+                                            </div>
+                                            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                                                <p class="text-sm text-gray-600 dark:text-gray-400">
+                                                    Você buscará <span id="modal-results-count" class="font-bold text-indigo-600 dark:text-indigo-400">{{ auth()->user()->getEffectiveMaxApiFetches() }}</span> resultado(s)
+                                                </p>
+                                                <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                                                    Máximo permitido: <span class="font-semibold">{{ auth()->user()->getEffectiveMaxApiFetches() }}</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                        <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-base font-medium text-white hover:from-indigo-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200">
+                            Buscar
+                        </button>
+                        <button type="button" onclick="closeSearchMoreModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    @push('scripts')
+    <script>
+        let sliderListener = null;
+        let inputListener = null;
+        
+        function openSearchMoreModal(searchId, cidade, nicho) {
+            const modal = document.getElementById('searchMoreModal');
+            const form = document.getElementById('searchMoreForm');
+            const cityNicho = document.getElementById('modal-city-nicho');
+            const maxResults = {{ auth()->user()->getEffectiveMaxApiFetches() }};
+            
+            form.action = `/pesquisas/${searchId}/buscar-mais`;
+            cityNicho.textContent = `${cidade} - ${nicho}`;
+            
+            // Remove listeners anteriores se existirem
+            const slider = document.getElementById('max_results_modal_slider');
+            const input = document.getElementById('max_results_modal');
+            const count = document.getElementById('modal-results-count');
+            
+            if (sliderListener) {
+                slider.removeEventListener('input', sliderListener);
+            }
+            if (inputListener) {
+                input.removeEventListener('input', inputListener);
+            }
+            
+            // Sincroniza slider e input
+            sliderListener = function() {
+                input.value = this.value;
+                count.textContent = this.value;
+            };
+            
+            inputListener = function() {
+                const value = Math.max(1, Math.min(maxResults, parseInt(this.value) || 1));
+                slider.value = value;
+                this.value = value;
+                count.textContent = value;
+            };
+            
+            slider.addEventListener('input', sliderListener);
+            input.addEventListener('input', inputListener);
+            
+            // Atualiza valores iniciais
+            const initialValue = maxResults;
+            slider.value = initialValue;
+            input.value = initialValue;
+            count.textContent = initialValue;
+            
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeSearchMoreModal() {
+            const modal = document.getElementById('searchMoreModal');
+            modal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+        
+        // Fecha modal com ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('searchMoreModal');
+                if (!modal.classList.contains('hidden')) {
+                    closeSearchMoreModal();
+                }
+            }
+        });
+    </script>
+    @endpush
 </x-app-layout>

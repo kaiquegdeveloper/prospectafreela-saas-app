@@ -97,6 +97,34 @@
                     <form method="POST" action="{{ route('prospects.store') }}">
                         @csrf
 
+                        <!-- Serviço -->
+                        <div class="mb-6">
+                            <label for="servico" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2.5">
+                                <span class="flex items-center gap-1.5">
+                                    <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Qual serviço você oferece?
+                                </span>
+                            </label>
+                            <select name="servico" 
+                                    id="servico"
+                                    class="block w-full rounded-xl border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:bg-gray-700 dark:text-white px-4 py-3 transition-all duration-200">
+                                <option value="">Selecione um serviço (opcional)</option>
+                                @foreach($services as $service)
+                                    <option value="{{ $service->name }}" {{ old('servico') === $service->name ? 'selected' : '' }}>
+                                        {{ $service->icon }} {{ $service->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <p class="mt-2.5 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Ao selecionar um serviço, você receberá sugestões de nichos relacionados.
+                            </p>
+                        </div>
+
                         <!-- Cidade -->
                         <div class="mb-6">
                             <label for="cidade" class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2.5">
@@ -120,6 +148,20 @@
                                        placeholder="Digite o nome da cidade..."
                                        class="block w-full rounded-xl border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:bg-gray-700 dark:text-white px-4 py-3 transition-all duration-200 @error('cidade') border-red-500 focus:border-red-500 focus:ring-red-500/20 @enderror">
                                 <div id="cidade-autocomplete" class="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl hidden max-h-72 overflow-auto"></div>
+                                @if(count($suggestedCities) > 0)
+                                    <div class="mt-2">
+                                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Cidades recentes:</p>
+                                        <div class="flex flex-wrap gap-2">
+                                            @foreach($suggestedCities as $city)
+                                                <button type="button" 
+                                                        class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-200"
+                                                        onclick="document.getElementById('cidade').value='{{ $city }}';">
+                                                    {{ $city }}
+                                                </button>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
                                 <div id="cidade-nearby" class="mt-2 hidden">
                                     <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Cidades próximas:</p>
                                     <div id="nearby-cities-list" class="flex flex-wrap gap-2"></div>
@@ -161,12 +203,72 @@
                                     {{ $message }}
                                 </p>
                             @enderror
+                            @if(count($suggestedNiches) > 0)
+                                <div class="mt-2">
+                                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Nichos recentes:</p>
+                                    <div class="flex flex-wrap gap-2">
+                                        @foreach($suggestedNiches as $niche)
+                                            <button type="button" 
+                                                    class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-200"
+                                                    onclick="document.getElementById('nicho').value='{{ $niche }}';">
+                                                {{ $niche }}
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                            <div id="nicho-suggestions" class="mt-2 hidden">
+                                <p class="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Sugestões de nichos para este serviço:</p>
+                                <div id="nicho-suggestions-list" class="flex flex-wrap gap-2"></div>
+                            </div>
                             <p class="mt-2.5 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
                                 <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                                 Descreva o tipo de negócio que você deseja prospectar.
                             </p>
+                        </div>
+
+                        <!-- Filtros Avançados -->
+                        <div class="mb-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
+                            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                                </svg>
+                                Filtros Avançados
+                            </h3>
+                            <div class="space-y-3">
+                                <label class="flex items-center gap-3 cursor-pointer group">
+                                    <input type="checkbox" 
+                                           name="only_valid_email" 
+                                           value="1"
+                                           {{ old('only_valid_email') ? 'checked' : '' }}
+                                           class="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
+                                    <div class="flex-1">
+                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                            Buscar apenas com e-mail válido
+                                        </span>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                            Retorna apenas prospects com e-mail válido e ativo
+                                        </p>
+                                    </div>
+                                </label>
+                                <label class="flex items-center gap-3 cursor-pointer group">
+                                    <input type="checkbox" 
+                                           name="only_valid_site" 
+                                           value="1"
+                                           {{ old('only_valid_site') ? 'checked' : '' }}
+                                           class="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600">
+                                    <div class="flex-1">
+                                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                            Buscar apenas com site válido
+                                        </span>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                            Retorna apenas prospects com site acessível e válido
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
 
                         <!-- Quantidade de Resultados -->
@@ -340,11 +442,28 @@
             const availableMonthly = Math.max(0, monthlyQuota - monthlyUsed);
             const availableQuota = Math.min(availableDaily, availableMonthly);
             
+            // Mapeamento de serviços para nichos sugeridos
+            const serviceNiches = {
+                'Designer Gráfico': ['Agência de Publicidade', 'Gráfica', 'Estúdio de Design', 'Marketing Digital', 'Comunicação Visual'],
+                'Estrategista de Marketing': ['Agência de Marketing', 'Consultoria de Marketing', 'Marketing Digital', 'Publicidade', 'E-commerce'],
+                'Programador Back-end Freela': ['Desenvolvimento de Software', 'Tecnologia', 'Startup', 'E-commerce', 'Sistema de Gestão'],
+                'Programador Front-end Freela': ['Desenvolvimento Web', 'Agência Digital', 'E-commerce', 'Startup', 'Tecnologia'],
+                'Criar ecommerce': ['Loja Online', 'E-commerce', 'Varejo', 'Moda', 'Cosméticos', 'Alimentação'],
+                'Estratégia de Ecommerce': ['E-commerce', 'Marketplace', 'Varejo Online', 'Dropshipping', 'Importação'],
+                'Tráfego Pago': ['E-commerce', 'Cursos Online', 'Infoprodutos', 'Serviços', 'Consultoria'],
+                'Social Media': ['Restaurante', 'Academia', 'Clínica', 'Salão de Beleza', 'Loja', 'E-commerce'],
+                'Criar Site': ['Pequenas Empresas', 'Profissionais Liberais', 'Clínicas', 'Escritórios', 'Lojas']
+            };
+            
             // Elementos do formulário
             const cidadeInput = document.getElementById('cidade');
             const autocompleteDiv = document.getElementById('cidade-autocomplete');
             const nearbyDiv = document.getElementById('cidade-nearby');
             const nearbyList = document.getElementById('nearby-cities-list');
+            const servicoSelect = document.getElementById('servico');
+            const nichoInput = document.getElementById('nicho');
+            const nichoSuggestionsDiv = document.getElementById('nicho-suggestions');
+            const nichoSuggestionsList = document.getElementById('nicho-suggestions-list');
             const maxResultsInput = document.getElementById('max_results');
             const maxResultsSlider = document.getElementById('max_results_slider');
             const resultsCount = document.getElementById('results-count');
@@ -354,6 +473,26 @@
             let searchTimeout;
             let selectedIndex = -1;
             let selectedCityData = null;
+            
+            // Quando um serviço é selecionado, mostra sugestões de nichos
+            if (servicoSelect) {
+                servicoSelect.addEventListener('change', function() {
+                    const selectedService = this.value;
+                    if (selectedService && serviceNiches[selectedService]) {
+                        const niches = serviceNiches[selectedService];
+                        nichoSuggestionsList.innerHTML = niches.map(niche => `
+                            <button type="button" 
+                                    class="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600 transition-all duration-200"
+                                    onclick="document.getElementById('nicho').value='${niche}'; document.getElementById('nicho-suggestions').classList.add('hidden');">
+                                ${niche}
+                            </button>
+                        `).join('');
+                        nichoSuggestionsDiv.classList.remove('hidden');
+                    } else {
+                        nichoSuggestionsDiv.classList.add('hidden');
+                    }
+                });
+            }
 
             // Sincroniza slider e input numérico
             function syncInputs() {

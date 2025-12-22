@@ -80,9 +80,40 @@ class ProspectController extends Controller
         $usage = $this->getUsageData($userId);
         $maxApiFetches = $user->getEffectiveMaxApiFetches();
 
+        // Busca sugestões de cidades das últimas pesquisas
+        $suggestedCities = UserSearch::where('user_id', $userId)
+            ->whereNotNull('cidade')
+            ->select('cidade', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->unique('cidade')
+            ->take(10)
+            ->pluck('cidade')
+            ->toArray();
+
+        // Busca sugestões de nichos das últimas pesquisas
+        $suggestedNiches = UserSearch::where('user_id', $userId)
+            ->whereNotNull('nicho')
+            ->select('nicho', 'created_at')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->unique('nicho')
+            ->take(10)
+            ->pluck('nicho')
+            ->toArray();
+
+        // Busca serviços/categorias de scripts de vendas
+        $services = \App\Models\SalesScriptCategory::where('is_active', true)
+            ->orderBy('order')
+            ->orderBy('name')
+            ->get();
+
         return view('prospects.create', [
             'usage' => $usage,
             'maxApiFetches' => $maxApiFetches,
+            'suggestedCities' => $suggestedCities,
+            'suggestedNiches' => $suggestedNiches,
+            'services' => $services,
         ]);
     }
 
@@ -99,7 +130,10 @@ class ProspectController extends Controller
         $validated = $request->validate([
             'cidade' => ['required', 'string', 'max:255'],
             'nicho' => ['required', 'string', 'max:255'],
+            'servico' => ['nullable', 'string', 'max:255'],
             'max_results' => ['nullable', 'integer', 'min:1', "max:{$maxApiFetches}"],
+            'only_valid_email' => ['nullable', 'boolean'],
+            'only_valid_site' => ['nullable', 'boolean'],
         ], [
             'cidade.required' => 'Por favor, informe a cidade.',
             'nicho.required' => 'Por favor, informe o nicho.',
@@ -156,7 +190,10 @@ class ProspectController extends Controller
                 $userId,
                 $validated['cidade'],
                 $validated['nicho'],
-                $maxResults
+                $maxResults,
+                $validated['servico'] ?? null,
+                $request->boolean('only_valid_email', false),
+                $request->boolean('only_valid_site', false)
             );
             
             return redirect()
@@ -186,7 +223,10 @@ class ProspectController extends Controller
                         $userId,
                         $validated['cidade'],
                         $validated['nicho'],
-                        $jobResults
+                        $jobResults,
+                        $validated['servico'] ?? null,
+                        $request->boolean('only_valid_email', false),
+                        $request->boolean('only_valid_site', false)
                     );
                 }
             }
@@ -201,7 +241,10 @@ class ProspectController extends Controller
             $userId,
             $validated['cidade'],
             $validated['nicho'],
-            $maxResults
+            $maxResults,
+            $validated['servico'] ?? null,
+            $request->boolean('only_valid_email', false),
+            $request->boolean('only_valid_site', false)
         );
 
         return redirect()
@@ -221,7 +264,16 @@ class ProspectController extends Controller
 
         $prospect->load('lead');
 
-        return view('prospects.show', compact('prospect'));
+        // Mensagem padrão para WhatsApp
+        $whatsappMessage = ContactMessageTemplate::where('channel', 'whatsapp')
+            ->where('is_active', true)
+            ->orderBy('id')
+            ->value('content');
+
+        return view('prospects.show', [
+            'prospect' => $prospect,
+            'whatsappMessage' => $whatsappMessage,
+        ]);
     }
 
     /**
@@ -548,6 +600,20 @@ class ProspectController extends Controller
             abort(403);
         }
 
+        // Valida o número de resultados solicitado
+        $user = Auth::user();
+        $user->refresh();
+        $maxApiFetches = $user->getEffectiveMaxApiFetches();
+
+        $validated = $request->validate([
+            'max_results' => ['required', 'integer', 'min:1', "max:{$maxApiFetches}"],
+        ], [
+            'max_results.required' => 'Por favor, informe quantos resultados buscar.',
+            'max_results.max' => "O número máximo de resultados permitido é {$maxApiFetches}.",
+        ]);
+
+        $maxResults = $validated['max_results'];
+
         // Verifica cota ANTES de buscar mais resultados
         $quotaCheck = $this->checkQuotaExceeded(Auth::id());
         if ($quotaCheck['exceeded']) {
@@ -556,22 +622,20 @@ class ProspectController extends Controller
                 ->withErrors(['quota' => $quotaCheck['message']]);
         }
 
-        // Obtém o limite máximo de API fetches do usuário
-        $user = Auth::user();
-        $user->refresh();
-        $maxApiFetches = $user->getEffectiveMaxApiFetches();
-
-        // Dispatch job para buscar mais resultados (usa o máximo permitido)
+        // Dispatch job para buscar mais resultados
         ProcessProspectingJob::dispatch(
             Auth::id(),
             $search->cidade,
             $search->nicho,
-            $maxApiFetches
+            $maxResults,
+            $search->servico,
+            $search->only_valid_email ?? false,
+            $search->only_valid_site ?? false
         );
 
         return redirect()
             ->route('searches.my')
-            ->with('success', 'Buscando mais resultados para ' . $search->cidade . ' - ' . $search->nicho . '... Os novos prospects aparecerão em alguns instantes.');
+            ->with('success', "Buscando {$maxResults} resultado(s) para {$search->cidade} - {$search->nicho}... Os novos prospects aparecerão em alguns instantes.");
     }
 
     /**
