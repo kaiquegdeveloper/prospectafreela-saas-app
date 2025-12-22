@@ -19,14 +19,18 @@ class CheckUserActive
         // Se o usuário está autenticado e não é super admin
         // Se estiver em modo de impersonação, permite acesso mesmo se inativo
         if (Auth::check() && !Auth::user()->isSuperAdmin() && !session()->has('impersonator_id')) {
+            $user = Auth::user();
+            
             // Verifica se o usuário está ativo
-            if (!Auth::user()->is_active || Auth::user()->refunded_at) {
+            if (!$user->is_active || $user->refunded_at) {
+                $wasRefunded = (bool) $user->refunded_at;
+                
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
                 
                 return redirect()->route('login')
-                    ->with('error', Auth::user()->refunded_at
+                    ->with('error', $wasRefunded
                         ? 'Acesso bloqueado: sua assinatura foi reembolsada.'
                         : 'Sua conta foi desativada. Entre em contato com o suporte.');
             }

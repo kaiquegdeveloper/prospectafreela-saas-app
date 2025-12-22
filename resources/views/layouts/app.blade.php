@@ -54,6 +54,37 @@
         <!-- Plan Modal -->
         <x-plan-modal />
         
+        <!-- Botão Flutuante Achar Clientes -->
+        @auth
+            @if(!request()->is('prospects/create'))
+                @php
+                    // Verifica quota para desabilitar botão se necessário
+                    $user = auth()->user();
+                    $quotaExceeded = false;
+                    if ($user) {
+                        $user->refresh();
+                        $today = now()->startOfDay();
+                        $monthStart = now()->startOfMonth();
+                        $dailyQuota = $user->getEffectiveDailyQuota();
+                        $monthlyQuota = $user->getEffectiveMonthlyQuota();
+                        $dailyCount = \App\Models\Prospect::forUser($user->id)->where('created_at', '>=', $today)->count();
+                        $monthlyCount = \App\Models\Prospect::forUser($user->id)->where('created_at', '>=', $monthStart)->count();
+                        $quotaExceeded = ($dailyQuota > 0 && $dailyCount >= $dailyQuota) || ($monthlyQuota > 0 && $monthlyCount >= $monthlyQuota);
+                    }
+                @endphp
+                <a href="{{ route('prospects.create') }}" 
+                   @if($quotaExceeded) onclick="event.preventDefault(); if (typeof openQuotaModal === 'function') { openQuotaModal(); } else { window.location.href='{{ route('prospects.create') }}'; }" @endif
+                   class="fixed bottom-6 right-6 z-50 inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-full shadow-2xl hover:shadow-3xl hover:scale-105 transition-all duration-300 group font-semibold @if($quotaExceeded) opacity-75 @endif"
+                   title="Buscar clientes">
+                    <svg class="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    <span class="hidden sm:inline">Buscar clientes</span>
+                    <span class="sr-only">Buscar clientes</span>
+                </a>
+            @endif
+        @endauth
+        
         @stack('scripts')
     </body>
 </html>

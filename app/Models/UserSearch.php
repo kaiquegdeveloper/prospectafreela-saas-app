@@ -15,6 +15,9 @@ class UserSearch extends Model
         'cidade',
         'normalized_cidade',
         'nicho',
+        'servico',
+        'only_valid_email',
+        'only_valid_site',
         'results_count',
         'status',
         'raw_data',
@@ -26,6 +29,8 @@ class UserSearch extends Model
         return [
             'completed_at' => 'datetime',
             'raw_data' => 'array',
+            'only_valid_email' => 'boolean',
+            'only_valid_site' => 'boolean',
         ];
     }
 

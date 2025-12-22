@@ -12,9 +12,9 @@ Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified', 'redirect.if.super.admin', 'check.user.active'])->name('dashboard');
+Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified', 'redirect.if.super.admin', 'check.user.active'])
+    ->name('dashboard');
 
 Route::middleware(['auth', 'redirect.if.super.admin', 'check.user.active'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -29,12 +29,17 @@ Route::middleware(['auth', 'redirect.if.super.admin', 'check.user.active'])->gro
     
     // Saved Searches routes
     Route::get('/minhas-pesquisas', [ProspectController::class, 'mySearches'])->name('searches.my');
+    Route::post('/pesquisas/{searchId}/buscar-mais', [ProspectController::class, 'searchMore'])->name('searches.search-more');
     Route::get('/pesquisas/{searchId}/exportar-csv', [ProspectController::class, 'exportSearchCsv'])->name('searches.export.csv');
     Route::get('/pesquisas/{searchId}/exportar-xlsx', [ProspectController::class, 'exportSearchXlsx'])->name('searches.export.xlsx');
+    
+    // Quota routes
+    Route::post('/quota/ativar-buscas-gratuitas', [ProspectController::class, 'activateFreeSearches'])->name('quota.activate-free-searches');
     
     // API routes (usando autenticação por sessão)
     Route::prefix('api')->group(function () {
         Route::get('/cities/search', [CityController::class, 'search'])->name('api.cities.search');
+        Route::get('/cities/nearby', [CityController::class, 'nearby'])->name('api.cities.nearby');
         Route::get('/prospects/check-new', [ProspectController::class, 'checkNew'])->name('api.prospects.check-new');
     });
     

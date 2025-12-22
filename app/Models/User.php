@@ -31,6 +31,7 @@ class User extends Authenticatable
         'daily_quota_custom',
         'max_api_fetches_custom',
         'plan_id',
+        'free_searches_used',
     ];
 
     /**
