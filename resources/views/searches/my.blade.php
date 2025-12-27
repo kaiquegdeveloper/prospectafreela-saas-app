@@ -17,16 +17,19 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <!-- Mensagens de Feedback -->
             @if(session('success'))
-                <div class="mb-6 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                    <div class="flex">
+                <div class="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 shadow-sm">
+                    <div class="flex items-start">
                         <div class="flex-shrink-0">
-                            <svg class="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                            <svg class="h-5 w-5 text-green-500 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
                             </svg>
                         </div>
-                        <div class="ml-3">
-                            <p class="text-sm font-medium text-green-800 dark:text-green-200">
+                        <div class="ml-3 flex-1">
+                            <p class="text-sm font-semibold text-green-800 dark:text-green-200 mb-1">
                                 {{ session('success') }}
+                            </p>
+                            <p class="text-xs text-green-700 dark:text-green-300 mt-1">
+                                ⏳ O job foi despachado na fila. Os novos prospects aparecerão automaticamente quando o processamento for concluído.
                             </p>
                         </div>
                     </div>
@@ -243,15 +246,28 @@
                             </div>
                             <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
                                 <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100" id="modal-title">
-                                    Buscar Mais Resultados
+                                    🔍 Buscar Mais Resultados
                                 </h3>
                                 <div class="mt-4">
                                     <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
                                         <span id="modal-city-nicho"></span>
                                     </p>
+                                    
+                                    <!-- Aviso sobre novos resultados -->
+                                    <div class="mb-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                                        <div class="flex items-start">
+                                            <svg class="h-5 w-5 text-blue-400 mt-0.5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                                            </svg>
+                                            <p class="text-xs text-blue-800 dark:text-blue-200">
+                                                <strong>Importante:</strong> Esta busca irá consultar a API do Google Maps para trazer <strong>NOVOS resultados</strong> que ainda não estão no banco de dados. O job será processado na fila e os novos prospects aparecerão em alguns instantes.
+                                            </p>
+                                        </div>
+                                    </div>
+                                    
                                     <div>
                                         <label for="max_results_modal" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                            Quantos resultados buscar?
+                                            Quantos NOVOS resultados buscar?
                                         </label>
                                         <div class="space-y-4">
                                             <div class="flex items-center gap-4">
@@ -274,11 +290,11 @@
                                                            class="block w-full rounded-xl border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:bg-gray-700 dark:text-white px-4 py-2.5 text-center font-semibold text-lg">
                                                 </div>
                                             </div>
-                                            <div class="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-                                                <p class="text-sm text-gray-600 dark:text-gray-400">
-                                                    Você buscará <span id="modal-results-count" class="font-bold text-indigo-600 dark:text-indigo-400">{{ auth()->user()->getEffectiveMaxApiFetches() }}</span> resultado(s)
+                                            <div class="bg-indigo-50 dark:bg-indigo-900/20 rounded-xl p-4 border border-indigo-200 dark:border-indigo-800">
+                                                <p class="text-sm text-indigo-800 dark:text-indigo-200">
+                                                    Você buscará <span id="modal-results-count" class="font-bold text-indigo-600 dark:text-indigo-400">{{ auth()->user()->getEffectiveMaxApiFetches() }}</span> <strong>NOVO(S)</strong> resultado(s) na API
                                                 </p>
-                                                <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                                                <p class="text-xs text-indigo-600 dark:text-indigo-400 mt-2">
                                                     Máximo permitido: <span class="font-semibold">{{ auth()->user()->getEffectiveMaxApiFetches() }}</span>
                                                 </p>
                                             </div>
@@ -289,8 +305,11 @@
                         </div>
                     </div>
                     <div class="bg-gray-50 dark:bg-gray-900/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                        <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-base font-medium text-white hover:from-indigo-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200">
-                            Buscar
+                        <button type="submit" class="w-full inline-flex items-center justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 text-base font-medium text-white hover:from-indigo-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm transition-all duration-200">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            Buscar Novos Resultados
                         </button>
                         <button type="button" onclick="closeSearchMoreModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-800 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                             Cancelar

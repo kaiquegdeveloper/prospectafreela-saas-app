@@ -31,7 +31,8 @@ class ProcessProspectingJob implements ShouldQueue
         public ?int $maxResults = null,
         public ?string $servico = null,
         public bool $onlyValidEmail = false,
-        public bool $onlyValidSite = false
+        public bool $onlyValidSite = false,
+        public bool $forceNewSearch = false
     ) {
         $this->onQueue('prospecting');
     }
@@ -65,19 +66,23 @@ class ProcessProspectingJob implements ShouldQueue
         }
 
         // Verifica se já existe pesquisa similar COMPLETA (reutilização)
-        $existingSearch = UserSearch::where('user_id', $this->userId)
-            ->where(function ($query) use ($normalizedCity) {
-                $query->where('normalized_cidade', $normalizedCity)
-                      ->orWhere('cidade', $this->cidade);
-            })
-            ->where('nicho', $this->nicho)
-            ->where('status', 'completed')
-            ->whereNotNull('raw_data')
-            ->orderBy('created_at', 'desc')
-            ->first();
+        // IGNORA se forceNewSearch = true (para buscar NOVOS resultados)
+        $existingSearch = null;
+        if (!$this->forceNewSearch) {
+            $existingSearch = UserSearch::where('user_id', $this->userId)
+                ->where(function ($query) use ($normalizedCity) {
+                    $query->where('normalized_cidade', $normalizedCity)
+                          ->orWhere('cidade', $this->cidade);
+                })
+                ->where('nicho', $this->nicho)
+                ->where('status', 'completed')
+                ->whereNotNull('raw_data')
+                ->orderBy('created_at', 'desc')
+                ->first();
+        }
 
-        // Se existe pesquisa anterior com dados, reutiliza
-        if ($existingSearch && !empty($existingSearch->raw_data)) {
+        // Se existe pesquisa anterior com dados, reutiliza (apenas se não for forçar nova busca)
+        if (!$this->forceNewSearch && $existingSearch && !empty($existingSearch->raw_data)) {
             Log::info('Reusing existing search', [
                 'user_id' => $this->userId,
                 'cidade' => $this->cidade,
@@ -146,8 +151,8 @@ class ProcessProspectingJob implements ShouldQueue
             }
 
             // Busca empresas no Google Maps (usa cidade normalizada internamente)
-            // O searchBusinesses já verifica banco de dados e cache ANTES de chamar API
-            $businesses = $scraper->searchBusinesses($this->cidade, $this->nicho, $this->userId, $this->maxResults);
+            // Se forceNewSearch = true, força nova busca na API ignorando cache/banco
+            $businesses = $scraper->searchBusinesses($this->cidade, $this->nicho, $this->userId, $this->maxResults, $this->forceNewSearch);
 
             if (empty($businesses)) {
                 $userSearch->update([

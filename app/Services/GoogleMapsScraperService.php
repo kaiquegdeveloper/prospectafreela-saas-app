@@ -25,9 +25,10 @@ class GoogleMapsScraperService
      * @param string $nicho
      * @param int|null $userId Para logging e limites
      * @param int|null $limit Limite de resultados (padrão: 50 ou limite do usuário)
+     * @param bool $forceNewSearch Se true, força nova busca na API ignorando cache/banco
      * @return array
      */
-    public function searchBusinesses(string $cidade, string $nicho, ?int $userId = null, ?int $limit = null): array
+    public function searchBusinesses(string $cidade, string $nicho, ?int $userId = null, ?int $limit = null, bool $forceNewSearch = false): array
     {
         // Normaliza a cidade usando Nominatim
         $normalizedCity = $this->cityNormalizer->normalizeCity($cidade);
@@ -43,7 +44,8 @@ class GoogleMapsScraperService
         }
 
         // OTIMIZAÇÃO DE CUSTO: Verifica PRIMEIRO no banco de dados (mais confiável que cache)
-        if ($userId !== null) {
+        // IGNORA se forceNewSearch = true (para buscar NOVOS resultados)
+        if (!$forceNewSearch && $userId !== null) {
             $existingSearch = \App\Models\UserSearch::where('user_id', $userId)
                 ->where(function ($query) use ($cidade, $normalizedCity) {
                     $query->where('cidade', $cidade)
@@ -79,28 +81,40 @@ class GoogleMapsScraperService
         $cacheKey = "global_search:{$cidadeNormalized}:{$nichoNormalized}:{$limit}";
 
         // Verifica cache global (90 dias) - SEGUNDA verificação
-        $cached = Cache::get($cacheKey);
-        if ($cached !== null) {
-            Log::info('Using cache (ECONOMIZA API)', [
-                'cidade' => $cidade,
-                'nicho' => $nicho,
-            ]);
+        // IGNORA se forceNewSearch = true (para buscar NOVOS resultados)
+        if (!$forceNewSearch) {
+            $cached = Cache::get($cacheKey);
+            if ($cached !== null) {
+                Log::info('Using cache (ECONOMIZA API)', [
+                    'cidade' => $cidade,
+                    'nicho' => $nicho,
+                ]);
 
-            $this->logApiCall($userId, 'google_maps_places', '/places/textsearch', 'GET', 200, [
+                $this->logApiCall($userId, 'google_maps_places', '/places/textsearch', 'GET', 200, [
+                    'cidade' => $cidade,
+                    'normalized_city' => $normalizedCity,
+                    'nicho' => $nicho,
+                ], ['cached' => true, 'results_count' => count($cached)], 0, true);
+                
+                return $cached;
+            }
+        }
+
+        // Chama API (força nova busca se forceNewSearch = true, ou se não encontrou cache/banco)
+        if ($forceNewSearch) {
+            Log::info('Calling Google Maps API (FORCING NEW SEARCH - ignoring cache/database)', [
                 'cidade' => $cidade,
                 'normalized_city' => $normalizedCity,
                 'nicho' => $nicho,
-            ], ['cached' => true, 'results_count' => count($cached)], 0, true);
-            
-            return $cached;
+                'user_id' => $userId,
+            ]);
+        } else {
+            Log::info('Calling Google Maps API (no cache found)', [
+                'cidade' => $cidade,
+                'normalized_city' => $normalizedCity,
+                'nicho' => $nicho,
+            ]);
         }
-
-        // Só chama API se não encontrou em lugar nenhum
-        Log::info('Calling Google Maps API (no cache found)', [
-            'cidade' => $cidade,
-            'normalized_city' => $normalizedCity,
-            'nicho' => $nicho,
-        ]);
 
         // Monta query: "{nicho} em {cidade_normalizada}"
         $query = "{$nicho} em {$normalizedCity}";
