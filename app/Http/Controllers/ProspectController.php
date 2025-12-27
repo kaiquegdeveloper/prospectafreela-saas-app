@@ -684,6 +684,7 @@ class ProspectController extends Controller
         }
 
         // Dispatch job para buscar mais resultados
+        // IMPORTANTE: forceNewSearch = true garante que busca NOVOS resultados na API
         ProcessProspectingJob::dispatch(
             Auth::id(),
             $search->cidade,
@@ -691,12 +692,13 @@ class ProspectController extends Controller
             $maxResults,
             $search->servico,
             $search->only_valid_email ?? false,
-            $search->only_valid_site ?? false
+            $search->only_valid_site ?? false,
+            true // forceNewSearch = true para buscar NOVOS resultados
         );
 
         return redirect()
             ->route('searches.my')
-            ->with('success', "Buscando {$maxResults} resultado(s) para {$search->cidade} - {$search->nicho}... Os novos prospects aparecerão em alguns instantes.");
+            ->with('success', "🔍 Buscando {$maxResults} NOVO(S) resultado(s) na API do Google Maps para {$search->cidade} - {$search->nicho}... Os novos prospects aparecerão em alguns instantes.");
     }
 
     /**
